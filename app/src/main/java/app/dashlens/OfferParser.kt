@@ -15,7 +15,9 @@ data class Offer(
     val windowMin: Double,         // minutes from now until "Deliver by", 0 when not shown
     val pickups: Int,
     val merchants: List<String>,
-    val tipsIncluded: Boolean
+    val tipsIncluded: Boolean,
+    val items: Int = 0,            // shop & deliver item count ("4 items"), 0 when not shown
+    val payPlus: Boolean = false   // pay shown as "$22.00+": a minimum, the real pay can be higher
 ) {
     val merchant: String get() = merchants.firstOrNull() ?: ""
 }
@@ -27,6 +29,8 @@ object OfferParser {
     private val minRe = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
     private val shownMinRe = Regex("""^\D{0,3}(\d+)\s*min""", RegexOption.IGNORE_CASE)
     private val countRe = Regex("""(\d+)\s*(?:pickups?|stops?)\b""", RegexOption.IGNORE_CASE)
+    private val itemsRe = Regex("""(\d+)\s+items?\b""", RegexOption.IGNORE_CASE)
+    private val plusRe = Regex("""\$\s?\d{1,3}(?:\.\d{1,2})?\s*\+""")
     private val deliverByRe = Regex("""deliver\s+by\s+(\d{1,2}):(\d{2})\s*([ap])?\.?m?""", RegexOption.IGNORE_CASE)
     private val pickupLabelRe = Regex("""^pick-?up(\s+\d+)?$""", RegexOption.IGNORE_CASE)
     private val notMerchantRe = Regex("""^(customer\s+drop-?off|drop-?off.*|deliver.*|accept.*|decline.*)$""", RegexOption.IGNORE_CASE)
@@ -108,6 +112,8 @@ object OfferParser {
 
         if (pay <= 0.0 || miles <= 0.0) return null
         val tips = all.contains("incl. tip", true) || all.contains("guaranteed", true)
-        return Offer(pay, miles, shown, windowMinutes(t, now), pickups, merchants, tips)
+        val plus = plusRe.containsMatchIn(t[pick]) || t.getOrNull(pick + 1)?.trim() == "+"
+        val items = (itemsRe.find(all)?.groupValues?.get(1)?.toIntOrNull() ?: 0).let { if (it in 1..200) it else 0 }
+        return Offer(pay, miles, shown, windowMinutes(t, now), pickups, merchants, tips, items, plus)
     }
 }

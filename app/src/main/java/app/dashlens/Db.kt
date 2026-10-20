@@ -21,7 +21,8 @@ data class OfferRow(
     val id: Long, val ts: Long, val pay: Double, val miles: Double, val minutes: Double, val pickups: Int,
     val verdict: String, val netHr: Double, val perMile: Double, val outcome: String, val lat: Double, val lon: Double,
     val merchant: String = "", val actualMin: Double = 0.0, val actualMi: Double = 0.0,
-    val windowMin: Double = 0.0, val tipsIncl: Boolean = false
+    val windowMin: Double = 0.0, val tipsIncl: Boolean = false,
+    val items: Int = 0, val payPlus: Boolean = false
 ) {
     val hasLoc: Boolean get() = lat != 0.0 || lon != 0.0
 }
@@ -36,7 +37,7 @@ data class Earning(val id: Long, val ts: Long, val amount: Double, val platform:
 
 data class Expense(val id: Long, val ts: Long, val amount: Double, val category: String, val note: String, val receipt: String)
 
-class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db", null, 3) {
+class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db", null, 4) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -46,6 +47,12 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
         db.execSQL("CREATE INDEX seg_start ON seg(start_ms)")
         createV2(db)
         addV3(db)
+        addV4(db)
+    }
+
+    private fun addV4(db: SQLiteDatabase) {
+        db.execSQL("ALTER TABLE offer ADD COLUMN items INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE offer ADD COLUMN pay_plus INTEGER NOT NULL DEFAULT 0")
     }
 
     private fun addV3(db: SQLiteDatabase) {
@@ -80,6 +87,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createV2(db)      // upgrades keep every logged mile and offer
         if (oldVersion < 3) addV3(db)
+        if (oldVersion < 4) addV4(db)
     }
 
     // ------------------------------------------------------------------ mileage segments
@@ -147,6 +155,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
             put("per_mile", o.perMile); put("outcome", o.outcome); put("lat", o.lat); put("lon", o.lon)
             put("merchant", o.merchant); put("actual_min", o.actualMin); put("actual_mi", o.actualMi)
             put("window_min", o.windowMin); put("tips_incl", if (o.tipsIncl) 1 else 0)
+            put("items", o.items); put("pay_plus", if (o.payPlus) 1 else 0)
         }
         return writableDatabase.insert("offer", null, v)
     }
@@ -163,13 +172,14 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
     private fun readOffer(c: Cursor) = OfferRow(
         c.getLong(0), c.getLong(1), c.getDouble(2), c.getDouble(3), c.getDouble(4), c.getInt(5),
         c.getString(6), c.getDouble(7), c.getDouble(8), c.getString(9), c.getDouble(10), c.getDouble(11),
-        c.getString(12), c.getDouble(13), c.getDouble(14), c.getDouble(15), c.getInt(16) == 1
+        c.getString(12), c.getDouble(13), c.getDouble(14), c.getDouble(15), c.getInt(16) == 1,
+        c.getInt(17), c.getInt(18) == 1
     )
 
     fun offers(fromMs: Long, toMs: Long, limit: Int = 1000): List<OfferRow> {
         val out = ArrayList<OfferRow>()
         readableDatabase.rawQuery(
-            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl FROM offer " +
+            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl,items,pay_plus FROM offer " +
                 "WHERE ts>=? AND ts<? ORDER BY ts DESC LIMIT " + limit,
             arrayOf(fromMs.toString(), toMs.toString())
         ).use { c -> while (c.moveToNext()) out.add(readOffer(c)) }
@@ -184,7 +194,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
     fun unmeasuredAccepted(sinceMs: Long): List<OfferRow> {
         val out = ArrayList<OfferRow>()
         readableDatabase.rawQuery(
-            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl " +
+            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl,items,pay_plus " +
                 "FROM offer WHERE outcome='ACCEPTED' AND actual_min=0 AND ts>=? ORDER BY ts",
             arrayOf(sinceMs.toString())
         ).use { c -> while (c.moveToNext()) out.add(readOffer(c)) }

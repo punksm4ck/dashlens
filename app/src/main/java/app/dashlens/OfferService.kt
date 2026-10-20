@@ -94,7 +94,7 @@ class OfferService : AccessibilityService() {
 
     /** Sample card so you can check the overlay without waiting for a real offer. Never written to the history. */
     private fun showSample() {
-        val o = Offer(5.0, 1.4, 0.0, 9.0, 1, listOf("John's Bagel Deli"), true)
+        val o = ShareCard.sampleOffer()
         show(o, Analyzer.analyze(this, o))
         handler.removeCallbacks(timeoutRunnable)
         handler.postDelayed(timeoutRunnable, 10_000L)
@@ -176,7 +176,7 @@ class OfferService : AccessibilityService() {
         val loc = Tracker.lastFix
         val id = Db.get(this).insertOffer(
             OfferRow(0L, now, o.pay, o.miles, r.tripMin, o.pickups, r.verdict.name, r.netHr, r.perMile, "PENDING",
-                loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, o.merchant, 0.0, 0.0, o.windowMin, o.tipsIncluded)
+                loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, o.merchant, 0.0, 0.0, o.windowMin, o.tipsIncluded, o.items, o.payPlus)
         )
         OfferLog.begin(id, lastDetected == DState.ORDER)
     }
@@ -249,8 +249,10 @@ class OfferService : AccessibilityService() {
         head.addView(tv(r.verdict.title, 22f, accent, true).apply {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
-        head.addView(tv(f("$%.0f/hr net", r.netHr), 20f, accent, true))
+        val plus = if (o.payPlus) "+" else ""
+        head.addView(tv(f("$%.0f/hr net", r.netHr) + plus, 20f, accent, true))
         card.addView(head)
+        card.addView(tv(r.floorLine, 11f, muted))
 
         if (o.merchant.isNotEmpty()) {
             val sub = o.merchant + (if (o.pickups > 1) "  +" + (o.pickups - 1) + " more" else "") +
@@ -259,8 +261,8 @@ class OfferService : AccessibilityService() {
         }
 
         val row1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, dp(4)) }
-        row1.addView(stat("PAY", f("$%.2f", o.pay)))
-        row1.addView(stat("$ / MILE", f("$%.2f", r.perOfferMile)))
+        row1.addView(stat("PAY", f("$%.2f", o.pay) + plus))
+        row1.addView(stat("NET $ / MI", f("$%.2f", r.netPerOfferMile) + plus, if (r.netPerOfferMile >= 0.0) 0xFFFFFFFF.toInt() else bad))
         row1.addView(stat("MILES", f("%.1f", o.miles)))
         row1.addView(stat("ORDER TIME", "~" + r.tripMin.toInt() + " min"))
         card.addView(row1)
@@ -272,7 +274,16 @@ class OfferService : AccessibilityService() {
             row2.addView(stat("WHOLE CYCLE", "~" + r.totalMin.toInt() + " min"))
             if (o.windowMin > 0) row2.addView(stat("DELIVER BY", "in " + o.windowMin.toInt() + " min"))
             card.addView(row2)
-            r.reasons.take(4).forEach { card.addView(tv("• $it", 11f, 0xFFD0D3D8.toInt())) }
+            if (Prefs.getBool(this, "overlay_math", true)) {
+                r.hard.forEach { card.addView(tv("• $it", 11f, bad)) }
+                r.mathLines.forEach {
+                    val net = it.startsWith("Net pay")
+                    card.addView(tv(it, 11f, if (net) 0xFFFFFFFF.toInt() else 0xFFD0D3D8.toInt(), net))
+                }
+                if (o.payPlus) card.addView(tv("Graded at the + minimum: real pay may be higher.", 11f, mid))
+            } else {
+                r.reasons.take(4).forEach { card.addView(tv("• $it", 11f, 0xFFD0D3D8.toInt())) }
+            }
         }
         if (r.merchantLine.isNotEmpty())
             card.addView(tv(r.merchantLine, 11f, 0xFF7FB2FF.toInt(), true).apply { setPadding(0, dp(4), 0, 0) })

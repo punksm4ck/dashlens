@@ -39,13 +39,20 @@ class OffersActivity : BaseActivity() {
         if (merchants) buildMerchants(root, now) else buildHistory(root, now)
     }
 
+    /** Rebuilds the offer from its history row and grades it again with your current settings. */
+    private fun shareRow(o: OfferRow) {
+        val offer = Offer(o.pay, o.miles, 0.0, o.windowMin, o.pickups,
+            if (o.merchant.isNotEmpty()) listOf(o.merchant) else emptyList(), o.tipsIncl, o.items, o.payPlus)
+        ShareCard.share(this, offer, Analyzer.analyze(this, offer))
+    }
+
     private fun buildHistory(root: LinearLayout, now: Long) {
         val rows = Db.get(this).offers(now - 365L * 86_400_000L, now + 1000L, 200)
         if (rows.isEmpty()) {
             Ui.add(root, Ui.caption(this, "Nothing logged yet. Every offer the overlay analyses shows up here."))
             return
         }
-        Ui.add(root, Ui.caption(this, "Accepted or passed is DashLens's guess from the Dasher screens. Tap the tag on a row to correct it."), 10)
+        Ui.add(root, Ui.caption(this, "Accepted or passed is DashLens's guess from the Dasher screens. Tap the tag on a row to correct it. SHARE makes a picture card, graded again with your current settings."), 10)
         val fmt = DateTimeFormatter.ofPattern("EEE MMM d, HH:mm", Locale.US)
         for (o in rows) {
             val c = Ui.card(this)
@@ -60,6 +67,8 @@ class OffersActivity : BaseActivity() {
             head.addView(Ui.pill(this, o.outcome, oc).apply {
                 setOnClickListener { Db.get(this@OffersActivity).setOutcome(o.id, next(o.outcome)); render() }
             })
+            head.addView(android.widget.Space(this).apply { layoutParams = LinearLayout.LayoutParams(dp(6), 1) })
+            head.addView(Ui.pill(this, "SHARE", Ui.BLUE).apply { setOnClickListener { shareRow(o) } })
             c.addView(head)
             c.addView(Ui.text(this, String.format(Locale.US, "$%.2f · %.1f mi · ~$%.0f/hr net · $%.2f per real mile", o.pay, o.miles, o.netHr, o.perMile),
                 13f, Ui.TEXT).apply { setPadding(0, dp(8), 0, 0) })
@@ -76,7 +85,7 @@ class OffersActivity : BaseActivity() {
             Ui.add(root, Ui.caption(this, "Merchant history builds up as you take offers. After two completed orders at a place, DashLens uses your real times there."))
             return
         }
-        val cost = Prefs.get(this, "cost_mi")
+        val cost = Analyzer.costPerMile(this)
         val minHr = Prefs.get(this, "min_hr")
         for (m in list) {
             val c = Ui.card(this)

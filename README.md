@@ -34,6 +34,9 @@ Enable DashLens under Accessibility (Android 13+: Settings > Apps > DashLens > m
 - Options: card at top or bottom, compact card, vibrate pattern per verdict, spoken verdict
 - Every offer is logged (verdict, numbers, where you were). Outcome (accepted / passed) is guessed from the Dasher screens; fix wrong guesses in Offer history.
 
+### Offer math (v4.2)
+Each offer card can show the full working: gas (miles ÷ mpg × gas price), wear and tear, net pay, a time breakdown (driving, shopping and checkout for shop & deliver orders, waiting, drop-off) and the miles counted including the empty drive back. Pay shown with a "+" is graded at that minimum. In Offers, tap SHARE on any row to make a picture card of the grade. Everything stays on the phone until you share it.
+
 ## Mileage and time log
 1. DashLens notifies you when Dasher looks active; tap **Start shift** in that notification (or in the app).
 2. GPS logging, Online vs On order, auto-detected with manual override from the notification.

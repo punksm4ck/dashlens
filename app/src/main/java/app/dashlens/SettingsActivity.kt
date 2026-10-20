@@ -33,6 +33,30 @@ class SettingsActivity : BaseActivity() {
             inputs.clear(); kw.clear(); render()
         }
 
+    private val typical = mapOf(
+        "gas_price" to 3.87f, "mpg" to 25f, "wear_mi" to 0.18f, "shop_min_item" to 1.5f, "checkout_min" to 5f,
+        "dropoff_min" to 5f, "empty_pct" to 50f, "offer_speed_mph" to 25f, "speed_mph" to 25f
+    )
+
+    private fun confirmTypical() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Load typical Dasher assumptions?")
+            .setMessage(
+                "This replaces your gas price, mpg, wear and tear, shopping and checkout time, drop-off time, empty-return miles and speed with typical values " +
+                    "(gas \$3.87/gal, 25 mpg, wear \$0.18/mi, 1.5 min per shop item, 5 min checkout, 5 min drop-off, half a trip back empty, 25 mph). " +
+                    "Your minimum \$/hr and \$/mile are not changed."
+            )
+            .setPositiveButton("Load") { _, _ ->
+                saveAll()
+                for ((k, v) in typical) Prefs.put(this, k, v)
+                Prefs.putBool(this, "itemize_cost", true)
+                inputs.clear(); kw.clear(); render()
+                Toast.makeText(this, "Typical Dasher assumptions loaded", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun copy(key: String) {
         val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("dashlens", Prefs.getString(this, key)))
@@ -53,6 +77,13 @@ class SettingsActivity : BaseActivity() {
         row.addView(Ui.weighted(preset("Easygoing", 14f, 1.0f)))
         q.addView(row)
         Ui.add(root, q)
+
+        val t = Ui.card(this)
+        t.addView(Ui.text(this, "Costs and time: typical Dasher", 16f, Ui.TEXT, true))
+        t.addView(Ui.caption(this, "Not sure what to enter? Load a typical set of gas, wear, shopping and drop-off numbers, then change what does not match you.")
+            .apply { setPadding(0, dp(4), 0, dp(10)) })
+        t.addView(Ui.button(this, "Load typical Dasher assumptions") { confirmTypical() })
+        Ui.add(root, t)
 
         // ---- numbers, grouped
         var card: LinearLayout? = null
@@ -100,6 +131,7 @@ class SettingsActivity : BaseActivity() {
         d.addView(Ui.button(this, "Preview the offer card") {
             if (!OfferService.preview()) Toast.makeText(this, "Turn DashLens on under Accessibility first", Toast.LENGTH_LONG).show()
         })
+        d.addView(Ui.button(this, "Share a sample offer card (test)") { ShareCard.shareSample(this) })
         val ps = Prefs.getString(this, "parse_status")
         d.addView(Ui.text(this, "Last offer read: " + (if (ps.isEmpty()) "no offer seen yet" else ps), 13f,
             if (ps.startsWith("OK")) Ui.GREEN else if (ps.startsWith("FAILED")) Ui.RED else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DashLens</string>
+    <string name="service_desc">Reads the offer and status screens of the DoorDash Dasher app only, to show a profit card on each offer and log your miles. It never taps, accepts or types anything for you, and sends no data anywhere.</string>
+</resources>

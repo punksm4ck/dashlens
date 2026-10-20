@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-10-20
+
+### Changed
+- Version bump so the in-app version matches the release tag.
+
 ## [4.0.1] - 2026-10-20
 
 ### Changed

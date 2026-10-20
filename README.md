@@ -7,6 +7,25 @@ Free on-screen offer analyzer + mileage, earnings, expense and tax log for the D
 
 > DashLens is an independent project. It is not affiliated with, endorsed by, or sponsored by DoorDash, Inc. DoorDash and Dasher are trademarks of DoorDash, Inc. DashLens only reads what is on your own screen and never taps, accepts or declines offers for you.
 
+## Install
+<img src="docs/install-qr.png" alt="QR code to download DashLens" width="200">
+
+Scan with your phone's camera, or download [DashLens.apk](https://github.com/punksm4ck/dashlens/releases/latest/download/DashLens.apk) ([all releases](https://github.com/punksm4ck/dashlens/releases)). Requires Android 8.0 or newer (API 26+).
+
+1. Allow installs from your browser when prompted, then open the APK and tap through the Play Protect unknown-developer prompt.
+2. Open DashLens and run the setup checklist.
+3. Android 13+: Settings > Apps > DashLens > menu > **Allow restricted settings**.
+4. Settings > Accessibility > enable **DashLens**.
+5. Grant location when asked (used for mileage logging).
+
+Verify the download (SHA-256 of v4.0.0):
+
+    fff688389f2c8785e4b1c2595a049068db9639f2df81506a6b1eecb8490e3f56
+
+macOS/Linux: `shasum -a 256 DashLens.apk`. Windows: `certutil -hashfile DashLens.apk SHA256`.
+
+DashLens holds an accessibility permission and only reads what is on your own screen. If you would rather not trust a prebuilt APK, build it from source (see [Contributing](CONTRIBUTING.md)).
+
 ## Offer overlay
 Enable DashLens under Accessibility (Android 13+: Settings > Apps > DashLens > menu > Allow restricted settings first).
 - Verdict tiers: TAKE (green), MAYBE (amber, within 15% of your minimums), DECLINE (red)

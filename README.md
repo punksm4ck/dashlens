@@ -1,6 +1,12 @@
 # DashLens v4
 Free on-screen offer analyzer + mileage, earnings, expense and tax log for the DoorDash Dasher app (Android). Display only: it never taps, accepts or declines anything for you.
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platform: Android](https://img.shields.io/badge/platform-Android-green.svg)
+![Language: Kotlin](https://img.shields.io/badge/language-Kotlin-purple.svg)
+
+> DashLens is an independent project. It is not affiliated with, endorsed by, or sponsored by DoorDash, Inc. DoorDash and Dasher are trademarks of DoorDash, Inc. DashLens only reads what is on your own screen and never taps, accepts or declines offers for you.
+
 ## Offer overlay
 Enable DashLens under Accessibility (Android 13+: Settings > Apps > DashLens > menu > Allow restricted settings first).
 - Verdict tiers: TAKE (green), MAYBE (amber, within 15% of your minimums), DECLINE (red)
@@ -28,11 +34,21 @@ Offer stats and acceptance rate, best weekdays and time slots by your own $/hr, 
 ## Reports and exports
 Week / month / year. Save writes summary CSV, trip-log CSV, offers CSV, ledger CSV (earnings + expenses) and a text summary to Downloads/DashLens. The Sunday 11:59 PM weekly save includes the money section and a tax-date reminder when a payment is due within 21 days.
 
-## Tuning
-Screen keywords are guesses until tuned on real Dasher screens. After a shift: "Copy screen log" and "Copy captured offer text", paste both to Claude.
+## Reporting problems
+Screen keywords can drift when the Dasher app changes. If offers are not recognized, use **Copy screen log** and **Copy captured offer text** in the app and attach them to a new issue. Remove addresses and other personal details first.
 
 ## v4: tuned on real Dasher screens
 - Dasher's offer shows pay, miles, deliver-by time and merchant, but no trip time. DashLens now reads exactly that, estimates trip time from your real pace, and uses your history at each merchant once it has two completed orders.
 - Online / offline screen wording updated from real logs ("Finding offers", "You're dashing now", "Dash now").
 - New dashboard, offer history with merchant view, five-tab navigation, setup health checklist, first-run disclosure.
 - See docs/ for the privacy policy and store-listing pack.
+
+## Documentation
+- [Privacy policy](docs/PRIVACY.md)
+- [Store listing](docs/STORE_LISTING.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
+
+## License
+Released under the [MIT License](LICENSE).

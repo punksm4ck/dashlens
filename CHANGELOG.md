@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Unit tests for the offer parser and the grading model (31 cases: pay, distance and merchant reading, "+" pay, item counts, deliver-by window across midnight, vehicle cost modes, hard filters, shop & deliver time, merchant history). Run them with `gradle testDebugUnitTest`.
+- CI now runs the unit tests and a lint pass on every push, uploads the test and lint reports, and the release workflow stops if a test fails.
+
 ## [4.2.0] - 2026-10-20
 
 ### Added

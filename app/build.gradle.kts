@@ -44,4 +44,11 @@ android {
     }
 
     lint { abortOnError = false }
+
+    // Unit tests run on a plain JVM; Android calls the tests don't touch return defaults instead of throwing.
+    testOptions { unitTests.isReturnDefaultValues = true }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
 }

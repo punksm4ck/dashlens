@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.2.1] - 2026-10-23
+
+### Changed
+- The offer card no longer sits on top of the Accept and Decline buttons. DashLens finds the two buttons on the Dasher screen and moves the card just below or above them. If the Dasher screen is still sliding in, the card follows the buttons. Switch it off with "Keep the offer card off the Accept and Decline buttons" in Settings.
+- New setting "Move the offer card down (+) or up (-)" (a % of the screen height) for fine tuning. Number boxes now accept a minus sign.
+- Settings > Diagnostics shows where the buttons were found and where the card was placed, so a wrong position is easy to report.
+- The Preview card has no real buttons to avoid, so it shows your top/bottom choice plus the nudge.
+
 ### Added
 - Unit tests for the offer parser and the grading model (31 cases: pay, distance and merchant reading, "+" pay, item counts, deliver-by window across midnight, vehicle cost modes, hard filters, shop & deliver time, merchant history). Run them with `gradle testDebugUnitTest`.
 - CI now runs the unit tests and a lint pass on every push, uploads the test and lint reports, and the release workflow stops if a test fails.

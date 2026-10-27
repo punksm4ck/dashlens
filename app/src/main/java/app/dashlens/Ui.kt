@@ -152,7 +152,7 @@ object Ui {
         setTextColor(TEXT)
         setHintTextColor(MUTED)
         textSize = 16f
-        if (decimal) inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        if (decimal) inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
         background = rounded(c, SURFACE2, 10, STROKE)
         setPadding(dp(c, 12), dp(c, 10), dp(c, 12), dp(c, 10))
     }

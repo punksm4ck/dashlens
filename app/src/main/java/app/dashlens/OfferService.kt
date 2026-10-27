@@ -4,10 +4,12 @@ import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.util.DisplayMetrics
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.speech.tts.TextToSpeech
@@ -20,12 +22,15 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.Locale
+import kotlin.math.abs
 
 class OfferService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var wm: WindowManager? = null
     private var overlay: View? = null
+    private var overlayLp: WindowManager.LayoutParams? = null
+    private var bands: List<Band> = emptyList()      // Accept / Decline buttons as last seen on screen
     private var lastKey = ""
     private var lastDump = ""
     private var lastDetected: DState? = null      // last non-offer screen state, to know if you were already on an order
@@ -94,6 +99,7 @@ class OfferService : AccessibilityService() {
 
     /** Sample card so you can check the overlay without waiting for a real offer. Never written to the history. */
     private fun showSample() {
+        bands = emptyList()
         val o = ShareCard.sampleOffer()
         show(o, Analyzer.analyze(this, o))
         handler.removeCallbacks(timeoutRunnable)
@@ -157,10 +163,12 @@ class OfferService : AccessibilityService() {
 
         val key = "${offer.pay}|${offer.miles}|${offer.merchants.joinToString("+")}"
         if (key == lastKey && overlay != null) {
+            relayout(root)
             handler.postDelayed(timeoutRunnable, 45_000)
             return
         }
         lastKey = key
+        bands = findBands(root)
         val result = Analyzer.analyze(this, offer)
         logOffer(offer, result, key)
         show(offer, result)
@@ -299,7 +307,6 @@ class OfferService : AccessibilityService() {
             addView(card)
         }
 
-        val bottom = Prefs.getBool(this, "overlay_bottom", false)
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -309,19 +316,92 @@ class OfferService : AccessibilityService() {
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = if (bottom) Gravity.BOTTOM else Gravity.TOP
-            y = if (bottom) dp(120) else dp(36)
+            gravity = Gravity.TOP
+            y = cardTop(wrap)
         }
         try {
             wm?.addView(wrap, lp)
             overlay = wrap
-        } catch (_: Exception) { overlay = null }
+            overlayLp = lp
+        } catch (_: Exception) { overlay = null; overlayLp = null }
+    }
+
+    private fun screenSize(): Pair<Int, Int> {
+        val dm = DisplayMetrics()
+        @Suppress("DEPRECATION") wm?.defaultDisplay?.getRealMetrics(dm)
+        val m = resources.displayMetrics
+        return Pair(if (dm.widthPixels > 0) dm.widthPixels else m.widthPixels, if (dm.heightPixels > 0) dm.heightPixels else m.heightPixels)
+    }
+
+    /** Top edge for the card: your top/bottom choice plus your nudge, then moved off the Accept/Decline buttons if needed. */
+    private fun cardTop(v: View): Int {
+        val (w, h) = screenSize()
+        v.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        val cardH = v.measuredHeight
+        val nudge = (Prefs.get(this, "overlay_nudge_pct") / 100.0 * h).toInt()
+        val bottom = Prefs.getBool(this, "overlay_bottom", false)
+        val preferred = (if (bottom) h - cardH - dp(120) else dp(36)) + nudge
+        val avoid = if (Prefs.getBool(this, "overlay_avoid", true)) bands else emptyList()
+        val y = CardPlacement.chooseTop(preferred, cardH, avoid, dp(24), h - dp(24), dp(8))
+        val covered = CardPlacement.covers(y, cardH, avoid, dp(8))
+        Prefs.putString(this, "layout_status",
+            if (avoid.isEmpty()) "Accept/Decline buttons not located, card at y=" + y + " of " + h + " px"
+            else (avoid.size.toString() + " button(s) at " + avoid.joinToString(", ") { it.top.toString() + "-" + it.bottom } +
+                "; card at y=" + y + " of " + h + " px" +
+                (if (covered) ". No free space: turn on the compact card." else ". Clear.")))
+        return y
+    }
+
+    /** Finds the Accept and Decline buttons so the card can stay off them. Uses the clickable parent when the text node is only the label. */
+    private fun findBands(root: AccessibilityNodeInfo): List<Band> {
+        if (!Prefs.getBool(this, "overlay_avoid", true)) return emptyList()
+        val (_, h) = screenSize()
+        val out = ArrayList<Band>()
+        fun visit(n: AccessibilityNodeInfo?, depth: Int) {
+            if (n == null || depth > 40) return
+            val t = (n.text?.toString() ?: n.contentDescription?.toString() ?: "").trim()
+            if (t.startsWith("decline", true) || t.startsWith("accept", true)) {
+                val own = Rect(); n.getBoundsInScreen(own)
+                var use = own
+                var p = n.parent
+                var hops = 0
+                while (p != null && hops < 3) {
+                    if (p.isClickable) {
+                        val r = Rect(); p.getBoundsInScreen(r)
+                        if (r.height() < h * 0.3) use = r
+                        break
+                    }
+                    p = p.parent; hops++
+                }
+                if (use.height() > 0 && use.bottom > 0 && use.top < h) out.add(Band(use.top, use.bottom))
+            }
+            for (i in 0 until n.childCount) visit(n.getChild(i), depth + 1)
+        }
+        visit(root, 0)
+        return out
+    }
+
+    /** The same offer is still on screen: if the buttons moved (the Dasher screen was still animating), move the card too. */
+    private fun relayout(root: AccessibilityNodeInfo) {
+        if (!Prefs.getBool(this, "overlay_avoid", true)) return
+        val now = findBands(root)
+        val moved = now.size != bands.size || now.indices.any { abs(now[it].top - bands[it].top) > dp(12) || abs(now[it].bottom - bands[it].bottom) > dp(12) }
+        if (!moved) return
+        bands = now
+        val ov = overlay ?: return
+        val lp = overlayLp ?: return
+        val y = cardTop(ov)
+        if (y != lp.y) {
+            lp.y = y
+            try { wm?.updateViewLayout(ov, lp) } catch (_: Exception) {}
+        }
     }
 
     private fun hide() {
         handler.removeCallbacks(timeoutRunnable)
         overlay?.let { try { wm?.removeView(it) } catch (_: Exception) {} }
         overlay = null
+        overlayLp = null
         lastKey = ""
     }
 }

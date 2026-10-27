@@ -135,6 +135,9 @@ class SettingsActivity : BaseActivity() {
         val ps = Prefs.getString(this, "parse_status")
         d.addView(Ui.text(this, "Last offer read: " + (if (ps.isEmpty()) "no offer seen yet" else ps), 13f,
             if (ps.startsWith("OK")) Ui.GREEN else if (ps.startsWith("FAILED")) Ui.RED else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
+        val ls = Prefs.getString(this, "layout_status")
+        d.addView(Ui.text(this, "Offer card placement: " + (if (ls.isEmpty()) "no offer card shown yet" else ls), 13f, Ui.MUTED, true)
+            .apply { setPadding(0, 0, 0, dp(8)) })
         val dump = Prefs.getString(this, "last_dump")
         d.addView(Ui.caption(this, "Last captured offer text"))
         d.addView(Ui.text(this, if (dump.isEmpty()) "(nothing captured yet)" else dump, 11f, Ui.MUTED, mono = true))

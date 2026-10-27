@@ -9,6 +9,7 @@ data class Sw(val key: String, val label: String, val def: Boolean)
 object Prefs {
     private const val G_RULES = "Offer rules (what counts as TAKE)"
     private const val G_COST = "Costs and time assumptions"
+    private const val G_CARD = "Offer card position"
     private const val G_MONEY = "Goals, mileage rate and taxes"
 
     val FIELDS = listOf(
@@ -17,6 +18,7 @@ object Prefs {
         Field("min_pay", "Hard filter: minimum offer pay \$ (0 = off)", 0f, G_RULES),
         Field("max_mi", "Hard filter: maximum offer miles (0 = off)", 0f, G_RULES),
         Field("max_stops", "Hard filter: maximum pickups / stops (0 = off)", 0f, G_RULES),
+        Field("overlay_nudge_pct", "Move the offer card down (+) or up (-) by this % of the screen height (0 = no change)", 0f, G_CARD),
         Field("gas_price", "Gas price (\$ per gallon)", 3.87f, G_COST),
         Field("mpg", "Your car's fuel economy (mpg)", 25f, G_COST),
         Field("wear_mi", "Wear and tear (\$ per mile: tires, maintenance, depreciation)", 0.18f, G_COST),
@@ -42,6 +44,7 @@ object Prefs {
         Sw("prompt_start", "Notify me to start a shift when Dasher looks active", true),
         Sw("auto_calibrate", "Learn my real order times and merchant history from my own shifts", true),
         Sw("overlay_bottom", "Show the offer card at the bottom of the screen", false),
+        Sw("overlay_avoid", "Keep the offer card off the Accept and Decline buttons (it moves just below or above them)", true),
         Sw("overlay_compact", "Compact offer card (verdict and key numbers only)", false),
         Sw("fb_haptic", "Vibrate on verdict (1 buzz take, 2 maybe, 3 decline)", false),
         Sw("fb_voice", "Speak the verdict aloud", false),

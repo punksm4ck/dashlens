@@ -18,9 +18,9 @@ Scan with your phone's camera, or download [DashLens.apk](https://github.com/pun
 4. Settings > Accessibility > enable **DashLens**.
 5. Grant location when asked (used for mileage logging).
 
-Verify the download (SHA-256 of v4.2.0):
+Verify the download (SHA-256 of v4.2.1):
 
-    ccf425ab739c55c22724ff82bbc284386f558c3f0f7a1f11f40af87408f05f86
+    96b0d8f8927a561c37b0d78fcf162b12c867e8fda691d5a4b3511573ad71bb5d
 
 macOS/Linux: `shasum -a 256 DashLens.apk`. Windows: `certutil -hashfile DashLens.apk SHA256`.
 

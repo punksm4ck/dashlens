@@ -1,11 +1,11 @@
 # DashLens v4
-Free on-screen offer analyzer + mileage, earnings, expense and tax log for the DoorDash Dasher app (Android). Display only: it never taps, accepts or declines anything for you.
+Free on-screen offer analyzer + mileage, earnings, expense and tax log for the DoorDash Dasher app (Android), and optionally the Uber Driver app. Display only: it never taps, accepts or declines anything for you.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: Android](https://img.shields.io/badge/platform-Android-green.svg)
 ![Language: Kotlin](https://img.shields.io/badge/language-Kotlin-purple.svg)
 
-> DashLens is an independent project. It is not affiliated with, endorsed by, or sponsored by DoorDash, Inc. DoorDash and Dasher are trademarks of DoorDash, Inc. DashLens only reads what is on your own screen and never taps, accepts or declines offers for you.
+> DashLens is an independent project. It is not affiliated with, endorsed by, or sponsored by DoorDash, Inc. or Uber Technologies, Inc. DoorDash and Dasher are trademarks of DoorDash, Inc.; Uber is a trademark of Uber Technologies, Inc. DashLens only reads what is on your own screen and never taps, accepts or declines offers for you.
 
 ## Install
 <img src="docs/install-qr.png" alt="QR code to download DashLens" width="200">
@@ -36,6 +36,13 @@ Enable DashLens under Accessibility (Android 13+: Settings > Apps > DashLens > m
 
 ### Offer math (v4.2)
 Each offer card can show the full working: gas (miles ÷ mpg × gas price), wear and tear, net pay, a time breakdown (driving, shopping and checkout for shop & deliver orders, waiting, drop-off) and the miles counted including the empty drive back. Pay shown with a "+" is graded at that minimum. In Offers, tap SHARE on any row to make a picture card of the grade. Everything stays on the phone until you share it.
+
+## Uber Driver (optional, v4.3)
+DashLens can also grade offers and log miles for the Uber Driver app. It is **off until you switch on Settings > Also read the Uber Driver app**; until then DashLens reads nothing from Uber.
+- Reads Uber delivery offers: the pay, the "22 min (8.1 mi) total" line and the pickup merchant. Uber shows the trip time, so DashLens uses it (plus your wait and drop-off times) instead of estimating.
+- Online ("Finding trips") and on-order screens are detected like Dasher's. If you use both apps, the shift counts as On order while either app has an order, so a look at Uber during a DoorDash order does not cut that order short.
+- Every offer is tagged DoorDash or Uber. Offer history, the offers CSV and the money summary show which app the accepted offers came from.
+- Built from real Uber delivery screens. Ride requests and other Uber layouts are not read yet: if an offer is not recognized the card simply does not appear. Use **Copy captured offer text** in Settings to send a sample.
 
 ## Mileage and time log
 1. DashLens notifies you when Dasher looks active; tap **Start shift** in that notification (or in the app).

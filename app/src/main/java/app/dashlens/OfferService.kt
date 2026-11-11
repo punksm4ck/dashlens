@@ -53,22 +53,27 @@ class OfferService : AccessibilityService() {
     private val resolveRunnable = Runnable { OfferLog.resolve(this) }
 
     private var pendingState: DState? = null
+    private val seen = HashMap<String, Seen>()      // what each driver app last showed (merged by StateMerge)
     private val applyPending = Runnable {
         pendingState?.let { Tracker.setState(it) }
         pendingState = null
     }
 
-    /** Feeds the mileage log and offer outcomes: works out Online / On order / not dashing from the Dasher screen. */
-    private fun trackScreen(texts: List<String>) {
+    /** Feeds the mileage log and offer outcomes: works out Online / On order / not dashing from the driver app screen. */
+    private fun trackScreen(texts: List<String>, platform: String) {
         val isOffer = OfferParser.looksLikeOffer(texts)
-        val ds = StateDetector.detect(this, texts, isOffer)
-        StateDetector.log(this, ds, texts)
-        if (ds != null && !isOffer) lastDetected = ds
-        if (ds == DState.ORDER) OfferLog.autoAccepted(this)
-        if (ds == null) return
+        val own = StateDetector.detect(this, texts, isOffer, platform)
+        StateDetector.log(this, own, texts, platform)
+        if (own == null) return
+        val now = System.currentTimeMillis()
+        seen[platform] = Seen(own, now)
+        if (own == DState.ORDER) OfferLog.autoAccepted(this, platform)
+        // the shift state is the strongest recent state across the driver apps (see StateMerge)
+        val ds = StateMerge.combine(seen, now) ?: own
+        if (!isOffer) lastDetected = ds
 
         if (!Tracker.running) {
-            if (ds != DState.OFFLINE) maybePromptStart()
+            if (ds != DState.OFFLINE) maybePromptStart(platform)
             return
         }
         if (!Prefs.getBool(this, "auto_state", true)) return
@@ -83,13 +88,13 @@ class OfferService : AccessibilityService() {
         }
     }
 
-    private fun maybePromptStart() {
+    private fun maybePromptStart(platform: String) {
         if (!Prefs.getBool(this, "prompt_start", true)) return
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
         val now = System.currentTimeMillis()
         if (now - Prefs.getLong(this, "last_prompt") < 30 * 60_000L) return
         Prefs.putLong(this, "last_prompt", now)
-        Prompts.promptStart(this)
+        Prompts.promptStart(this, platform)
     }
 
     override fun onServiceConnected() {
@@ -129,7 +134,9 @@ class OfferService : AccessibilityService() {
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e == null) return
         val root = rootInActiveWindow ?: return
-        if (root.packageName?.toString() != "com.doordash.driverapp") return
+        val platform = Platform.of(root.packageName?.toString()) ?: return
+        // Uber is opt-in: until it is switched on in Settings nothing is read from it
+        if (platform == Platform.UBER && !Prefs.getBool(this, "uber_enabled", false)) return
 
         val texts = ArrayList<String>()
         collect(root, texts, 0)
@@ -137,16 +144,17 @@ class OfferService : AccessibilityService() {
         val joined = texts.joinToString(" | ")
         if ((joined.contains("accept", true) || joined.contains("decline", true)) && joined != lastDump) {
             lastDump = joined
-            Prefs.putString(this, "last_dump", joined.take(4000))
+            Prefs.putString(this, "last_dump", "[" + platform + "] " + joined.take(4000))
         }
 
-        trackScreen(texts)
+        trackScreen(texts, platform)
 
-        val offer = OfferParser.parse(texts)
+        val offer = OfferParser.parse(texts, platform = platform)
+        val tag = if (platform == Platform.UBER) " (Uber)" else ""
         if (offer == null && OfferParser.looksLikeOffer(texts))
-            Prefs.putString(this, "parse_status", "FAILED: an offer screen was seen but pay or miles could not be read. Copy the offer text below.")
+            Prefs.putString(this, "parse_status", "FAILED" + tag + ": an offer screen was seen but pay or miles could not be read. Copy the offer text below.")
         if (offer != null)
-            Prefs.putString(this, "parse_status", "OK: read \$" + offer.pay + ", " + offer.miles + " mi" +
+            Prefs.putString(this, "parse_status", "OK" + tag + ": read \$" + offer.pay + ", " + offer.miles + " mi" +
                 (if (offer.merchant.isNotEmpty()) ", " + offer.merchant else ", merchant not found"))
         if (offer == null) {
             // offer screen gone (accepted / declined / expired): hide shortly, avoids flicker
@@ -161,7 +169,7 @@ class OfferService : AccessibilityService() {
         handler.removeCallbacks(timeoutRunnable)
         OfferLog.reappeared()
 
-        val key = "${offer.pay}|${offer.miles}|${offer.merchants.joinToString("+")}"
+        val key = "$platform|${offer.pay}|${offer.miles}|${offer.merchants.joinToString("+")}"
         if (key == lastKey && overlay != null) {
             relayout(root)
             handler.postDelayed(timeoutRunnable, 45_000)
@@ -184,9 +192,9 @@ class OfferService : AccessibilityService() {
         val loc = Tracker.lastFix
         val id = Db.get(this).insertOffer(
             OfferRow(0L, now, o.pay, o.miles, r.tripMin, o.pickups, r.verdict.name, r.netHr, r.perMile, "PENDING",
-                loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, o.merchant, 0.0, 0.0, o.windowMin, o.tipsIncluded, o.items, o.payPlus)
+                loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, o.merchant, 0.0, 0.0, o.windowMin, o.tipsIncluded, o.items, o.payPlus, o.platform)
         )
-        OfferLog.begin(id, lastDetected == DState.ORDER)
+        OfferLog.begin(id, lastDetected == DState.ORDER, o.platform)
     }
 
     private fun feedback(r: Result) {
@@ -262,8 +270,8 @@ class OfferService : AccessibilityService() {
         card.addView(head)
         card.addView(tv(r.floorLine, 11f, muted))
 
-        if (o.merchant.isNotEmpty()) {
-            val sub = o.merchant + (if (o.pickups > 1) "  +" + (o.pickups - 1) + " more" else "") +
+        if (o.merchant.isNotEmpty() || o.platform != Platform.DOORDASH) {
+            val sub = (if (o.platform != Platform.DOORDASH) o.platform + "   ·   " else "") + o.merchant + (if (o.pickups > 1) "  +" + (o.pickups - 1) + " more" else "") +
                 (if (o.tipsIncluded) "   ·   tips included" else "")
             card.addView(tv(sub, 13f, 0xFFE8EAED.toInt(), true).apply { setPadding(0, dp(2), 0, dp(4)) })
         }

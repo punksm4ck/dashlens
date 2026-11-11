@@ -138,11 +138,11 @@ object Reports {
     fun offersCsv(c: Context, r: Report): String {
         val rows = Db.get(c).offers(dayStart(r.from), dayStart(r.toExcl)).reversed()
         val dt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.US)
-        val sb = StringBuilder("DateTime,Verdict,Outcome,Pay,Miles,Minutes,Pickups,NetPerHour,PerRealMile,Lat,Lon\n")
+        val sb = StringBuilder("DateTime,Verdict,Outcome,Pay,Miles,Minutes,Pickups,NetPerHour,PerRealMile,Lat,Lon,Platform\n")
         for (o in rows) {
             sb.append(Instant.ofEpochMilli(o.ts).atZone(zone).format(dt)).append(',').append(o.verdict).append(',')
                 .append(o.outcome).append(',').append(String.format(Locale.US, "%.2f,%.1f,%.0f,%d,%.2f,%.2f", o.pay, o.miles, o.minutes, o.pickups, o.netHr, o.perMile))
-                .append(',').append(if (o.hasLoc) String.format(Locale.US, "%.5f,%.5f", o.lat, o.lon) else ",").append("\n")
+                .append(',').append(if (o.hasLoc) String.format(Locale.US, "%.5f,%.5f", o.lat, o.lon) else ",").append(',').append(o.platform).append("\n")
         }
         return sb.toString()
     }

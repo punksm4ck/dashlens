@@ -5,5 +5,5 @@
     android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:notificationTimeout="150"
-    android:packageNames="com.doordash.driverapp"
+    android:packageNames="com.doordash.driverapp,com.ubercab.driver"
     android:description="@string/service_desc" />

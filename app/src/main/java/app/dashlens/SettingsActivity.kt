@@ -114,7 +114,10 @@ class SettingsActivity : BaseActivity() {
         val defs = listOf(
             Triple("kw_order", "Words that mean ON ORDER", StateDetector.DEF_ORDER),
             Triple("kw_online", "Words that mean ONLINE", StateDetector.DEF_ONLINE),
-            Triple("kw_offline", "Words that mean NOT dashing", StateDetector.DEF_OFFLINE)
+            Triple("kw_offline", "Words that mean NOT dashing", StateDetector.DEF_OFFLINE),
+            Triple("kw_uber_order", "Uber: words that mean ON ORDER", StateDetector.UBER_DEF_ORDER),
+            Triple("kw_uber_online", "Uber: words that mean ONLINE", StateDetector.UBER_DEF_ONLINE),
+            Triple("kw_uber_offline", "Uber: words that mean NOT driving", StateDetector.UBER_DEF_OFFLINE)
         )
         for ((key, label, def) in defs) {
             k.addView(Ui.caption(this, label).apply { setPadding(0, dp(10), 0, dp(4)) })
@@ -154,8 +157,8 @@ class SettingsActivity : BaseActivity() {
         val ver = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "" }
         a.addView(Ui.caption(this, "Version " + ver).apply { setPadding(0, dp(4), 0, dp(6)) })
         a.addView(Ui.text(this,
-            "Everything stays on this phone: DashLens has no internet permission and no account. It reads only the DoorDash Dasher app screen, never taps or accepts anything for you, " +
-                "and is not affiliated with or endorsed by DoorDash. Earnings and tax figures are estimates, not tax advice.", 12f, Ui.MUTED))
+            "Everything stays on this phone: DashLens has no internet permission and no account. It reads only the DoorDash Dasher app screen (and the Uber Driver app, only if you switch that on above), never taps or accepts anything for you, " +
+                "and is not affiliated with or endorsed by DoorDash or Uber. Earnings and tax figures are estimates, not tax advice.", 12f, Ui.MUTED))
         a.addView(Ui.button(this, "Replay the setup guide") { startActivity(Intent(this, OnboardingActivity::class.java)) })
         Ui.add(root, a)
     }

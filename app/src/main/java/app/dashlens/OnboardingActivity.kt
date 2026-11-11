@@ -38,7 +38,7 @@ class OnboardingActivity : Activity() {
         acc.addView(Ui.text(this,
             "To show the offer card, DashLens uses Android's Accessibility Service to read the text on screens of the DoorDash Dasher app (offer pay, miles, merchant, " +
                 "and whether you are online or on an order).\n\n" +
-                "•  It reads only the Dasher app, and nothing else on your phone.\n" +
+                "•  It reads only the Dasher app, and nothing else on your phone. The Uber Driver app is read too, but only if you switch that on yourself in Settings.\n" +
                 "•  It never taps, accepts, declines or types anything for you.\n" +
                 "•  Nothing leaves your phone. DashLens has no internet access and no account.\n\n" +
                 "You turn this on yourself in Android settings, and can turn it off any time.", 14f, Ui.TEXT))
@@ -46,7 +46,7 @@ class OnboardingActivity : Activity() {
 
         val dis = Ui.card(this)
         dis.addView(Ui.text(this,
-            "Earnings, mileage deduction and tax figures are estimates to help you plan, not tax advice. DashLens is an independent app and is not affiliated with or endorsed by DoorDash.",
+            "Earnings, mileage deduction and tax figures are estimates to help you plan, not tax advice. DashLens is an independent app and is not affiliated with or endorsed by DoorDash or Uber.",
             12f, Ui.MUTED))
         Ui.add(col, dis, 20)
 

@@ -22,7 +22,8 @@ data class OfferRow(
     val verdict: String, val netHr: Double, val perMile: Double, val outcome: String, val lat: Double, val lon: Double,
     val merchant: String = "", val actualMin: Double = 0.0, val actualMi: Double = 0.0,
     val windowMin: Double = 0.0, val tipsIncl: Boolean = false,
-    val items: Int = 0, val payPlus: Boolean = false
+    val items: Int = 0, val payPlus: Boolean = false,
+    val platform: String = Platform.DOORDASH
 ) {
     val hasLoc: Boolean get() = lat != 0.0 || lon != 0.0
 }
@@ -37,7 +38,7 @@ data class Earning(val id: Long, val ts: Long, val amount: Double, val platform:
 
 data class Expense(val id: Long, val ts: Long, val amount: Double, val category: String, val note: String, val receipt: String)
 
-class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db", null, 4) {
+class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db", null, 5) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -48,6 +49,12 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
         createV2(db)
         addV3(db)
         addV4(db)
+        addV5(db)
+    }
+
+    /** v5: which driver app an offer came from. Existing offers were all DoorDash. */
+    private fun addV5(db: SQLiteDatabase) {
+        db.execSQL("ALTER TABLE offer ADD COLUMN platform TEXT NOT NULL DEFAULT 'DoorDash'")
     }
 
     private fun addV4(db: SQLiteDatabase) {
@@ -88,6 +95,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
         if (oldVersion < 2) createV2(db)      // upgrades keep every logged mile and offer
         if (oldVersion < 3) addV3(db)
         if (oldVersion < 4) addV4(db)
+        if (oldVersion < 5) addV5(db)
     }
 
     // ------------------------------------------------------------------ mileage segments
@@ -155,7 +163,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
             put("per_mile", o.perMile); put("outcome", o.outcome); put("lat", o.lat); put("lon", o.lon)
             put("merchant", o.merchant); put("actual_min", o.actualMin); put("actual_mi", o.actualMi)
             put("window_min", o.windowMin); put("tips_incl", if (o.tipsIncl) 1 else 0)
-            put("items", o.items); put("pay_plus", if (o.payPlus) 1 else 0)
+            put("items", o.items); put("pay_plus", if (o.payPlus) 1 else 0); put("platform", o.platform)
         }
         return writableDatabase.insert("offer", null, v)
     }
@@ -173,13 +181,13 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
         c.getLong(0), c.getLong(1), c.getDouble(2), c.getDouble(3), c.getDouble(4), c.getInt(5),
         c.getString(6), c.getDouble(7), c.getDouble(8), c.getString(9), c.getDouble(10), c.getDouble(11),
         c.getString(12), c.getDouble(13), c.getDouble(14), c.getDouble(15), c.getInt(16) == 1,
-        c.getInt(17), c.getInt(18) == 1
+        c.getInt(17), c.getInt(18) == 1, c.getString(19)
     )
 
     fun offers(fromMs: Long, toMs: Long, limit: Int = 1000): List<OfferRow> {
         val out = ArrayList<OfferRow>()
         readableDatabase.rawQuery(
-            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl,items,pay_plus FROM offer " +
+            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl,items,pay_plus,platform FROM offer " +
                 "WHERE ts>=? AND ts<? ORDER BY ts DESC LIMIT " + limit,
             arrayOf(fromMs.toString(), toMs.toString())
         ).use { c -> while (c.moveToNext()) out.add(readOffer(c)) }
@@ -194,7 +202,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
     fun unmeasuredAccepted(sinceMs: Long): List<OfferRow> {
         val out = ArrayList<OfferRow>()
         readableDatabase.rawQuery(
-            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl,items,pay_plus " +
+            "SELECT id,ts,pay,miles,minutes,pickups,verdict,net_hr,per_mile,outcome,lat,lon,merchant,actual_min,actual_mi,window_min,tips_incl,items,pay_plus,platform " +
                 "FROM offer WHERE outcome='ACCEPTED' AND actual_min=0 AND ts>=? ORDER BY ts",
             arrayOf(sinceMs.toString())
         ).use { c -> while (c.moveToNext()) out.add(readOffer(c)) }
@@ -246,6 +254,17 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "dashlens.db"
             "SELECT COALESCE(SUM(pay),0), COUNT(*) FROM offer WHERE outcome='ACCEPTED' AND ts>=? AND ts<?",
             arrayOf(fromMs.toString(), toMs.toString())
         ).use { c -> if (c.moveToFirst()) Pair(c.getDouble(0), c.getInt(1)) else Pair(0.0, 0) }
+
+    /** Accepted offers split by driver app: (app, pay, count), biggest first. */
+    fun acceptedByPlatform(fromMs: Long, toMs: Long): List<Triple<String, Double, Int>> {
+        val out = ArrayList<Triple<String, Double, Int>>()
+        readableDatabase.rawQuery(
+            "SELECT platform, COALESCE(SUM(pay),0), COUNT(*) FROM offer WHERE outcome='ACCEPTED' AND ts>=? AND ts<? " +
+                "GROUP BY platform ORDER BY 2 DESC",
+            arrayOf(fromMs.toString(), toMs.toString())
+        ).use { c -> while (c.moveToNext()) out.add(Triple(c.getString(0), c.getDouble(1), c.getInt(2))) }
+        return out
+    }
 
     // ------------------------------------------------------------------ earnings
     fun insertEarning(ts: Long, amount: Double, platform: String, kind: String, note: String) {

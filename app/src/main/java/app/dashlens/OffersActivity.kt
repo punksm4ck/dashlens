@@ -42,7 +42,7 @@ class OffersActivity : BaseActivity() {
     /** Rebuilds the offer from its history row and grades it again with your current settings. */
     private fun shareRow(o: OfferRow) {
         val offer = Offer(o.pay, o.miles, 0.0, o.windowMin, o.pickups,
-            if (o.merchant.isNotEmpty()) listOf(o.merchant) else emptyList(), o.tipsIncl, o.items, o.payPlus)
+            if (o.merchant.isNotEmpty()) listOf(o.merchant) else emptyList(), o.tipsIncl, o.items, o.payPlus, o.platform)
         ShareCard.share(this, offer, Analyzer.analyze(this, offer))
     }
 
@@ -52,7 +52,7 @@ class OffersActivity : BaseActivity() {
             Ui.add(root, Ui.caption(this, "Nothing logged yet. Every offer the overlay analyses shows up here."))
             return
         }
-        Ui.add(root, Ui.caption(this, "Accepted or passed is DashLens's guess from the Dasher screens. Tap the tag on a row to correct it. SHARE makes a picture card, graded again with your current settings."), 10)
+        Ui.add(root, Ui.caption(this, "Accepted or passed is DashLens's guess from the driver app screens. Tap the tag on a row to correct it. SHARE makes a picture card, graded again with your current settings."), 10)
         val fmt = DateTimeFormatter.ofPattern("EEE MMM d, HH:mm", Locale.US)
         for (o in rows) {
             val c = Ui.card(this)
@@ -73,6 +73,7 @@ class OffersActivity : BaseActivity() {
             c.addView(Ui.text(this, String.format(Locale.US, "$%.2f · %.1f mi · ~$%.0f/hr net · $%.2f per real mile", o.pay, o.miles, o.netHr, o.perMile),
                 13f, Ui.TEXT).apply { setPadding(0, dp(8), 0, 0) })
             val extra = StringBuilder(Instant.ofEpochMilli(o.ts).atZone(ZoneId.systemDefault()).format(fmt))
+            if (o.platform != Platform.DOORDASH) extra.append(" · ").append(o.platform)
             if (o.actualMin > 0.0) extra.append(String.format(Locale.US, " · took %.0f min, %.1f mi", o.actualMin, o.actualMi))
             c.addView(Ui.caption(this, extra.toString()).apply { setPadding(0, dp(2), 0, 0) })
             Ui.add(root, c, 10)

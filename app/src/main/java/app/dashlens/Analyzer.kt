@@ -104,7 +104,7 @@ object Analyzer {
         // --- how long will the order take?
         val driveMin: Double
         var source: String
-        if (o.shownMinutes > 0) { driveMin = o.shownMinutes; source = "time shown by Dasher" }
+        if (o.shownMinutes > 0) { driveMin = o.shownMinutes; source = "time shown by " + Platform.appName(o.platform) }
         else if (cal != null) { driveMin = o.miles * cal.minPerMi; source = "your real pace (" + cal.n + " orders)" }
         else { driveMin = o.miles / p("offer_speed_mph").coerceAtLeast(5.0) * 60.0; source = "estimated at " + Prefs.fmt(p("offer_speed_mph")) + " mph" }
         var orderMin = driveMin + wait + extra + p("dropoff_min")
@@ -164,7 +164,7 @@ object Analyzer {
             reasons += f("Deliver-by window is only %.0f min; your estimate is longer.", o.windowMin)
         if (actual != null) reasons += f("Using your actual gas + maintenance cost: \$%.2f per mile.", actual)
         if (o.payPlus) reasons += "Pay is shown with a +: graded at that minimum, so the real pay may be higher."
-        else if (!o.tipsIncluded) reasons += "Dasher did not say tips are included: pay may be higher."
+        else if (!o.tipsIncluded) reasons += Platform.appName(o.platform) + " did not say tips are included: pay may be higher."
 
         // ---- the line-by-line math (what the offer card and the share card print)
         val math = ArrayList<String>()

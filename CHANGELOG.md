@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-11-11
+
+### Added
+- Uber Driver support (opt-in). Switch on **Settings > Also read the Uber Driver app**; until then nothing is read from Uber. DashLens reads Uber delivery offers (pay, the "22 min (8.1 mi) total" line, pickup merchant), grades them like Dasher offers using the time Uber shows, and detects Uber's Finding trips (online) and arrival / navigation (on order) screens. Offer cards and history are tagged with the app.
+- If you use both apps, the shift state is the strongest recent state of either app (On order beats Online beats Paused), so checking Uber during a DoorDash order no longer ends that order early. DoorDash-only use behaves as before.
+- Offers record which app they came from (database v5; existing offers are marked DoorDash). The offers CSV has a Platform column and the money summary splits accepted-offer income by app when both are used.
+- Separate Uber word lists for online / on order / not driving under Settings > Screen keywords.
+- Uber offers laid out any other way (for example ride requests with separate pickup and trip legs) are reported as not read instead of being graded on half a trip.
+- Unit tests for the Uber screens (taken from real screenshots), the app merge, and a check that the accessibility config lists exactly the apps DashLens knows.
+
+### Changed
+- Onboarding, About, the service description, the privacy policy, the store listing and the README now say DashLens may read the Uber Driver app (only when switched on) and name Uber in the not-affiliated notice.
+
 ## [4.2.1] - 2026-10-23
 
 ### Changed

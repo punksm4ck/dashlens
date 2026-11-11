@@ -128,6 +128,11 @@ object Finance {
         if (manualOnly(c)) sb.append("  (logged by hand only)\n")
         else sb.append("  (").append(money(p.offerIncome)).append(" from ").append(p.offerCount)
             .append(" accepted offers + ").append(money(p.manualIncome)).append(" logged)\n")
+        if (!manualOnly(c)) {
+            val by = Db.get(c).acceptedByPlatform(Reports.dayStart(from), Reports.dayStart(toExcl))
+            if (by.size > 1) sb.append("    Accepted offers by app: ")
+                .append(by.joinToString(", ") { it.first + " " + money(it.second) + " (" + it.third + ")" }).append("\n")
+        }
         if (p.actualMethod) {
             sb.append("  Vehicle + other expenses: ").append(money(p.expenseDeduction))
                 .append("  (actual method, ").append(String.format(Locale.US, "%.0f", p.bizPct)).append("% business use)\n")

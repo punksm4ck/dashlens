@@ -20,7 +20,7 @@ object Prompts {
     }
 
     /** "Dasher looks active" with a Start shift button. A button tap is allowed to start the location service. */
-    fun promptStart(c: Context) {
+    fun promptStart(c: Context, platform: String = Platform.DOORDASH) {
         val pi = PendingIntent.getForegroundService(
             c, 21, Intent(c, TrackerService::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -28,7 +28,7 @@ object Prompts {
         val a = Notification.Action.Builder(Icon.createWithResource(c, R.drawable.ic_stat_dash), "Start shift", pi).build()
         val n = Notification.Builder(c, CH)
             .setSmallIcon(R.drawable.ic_stat_dash)
-            .setContentTitle("Dasher looks active")
+            .setContentTitle(if (platform == Platform.UBER) "Uber looks active" else "Dasher looks active")
             .setContentText("Start a DashLens shift to log miles?")
             .addAction(a)
             .setAutoCancel(true)

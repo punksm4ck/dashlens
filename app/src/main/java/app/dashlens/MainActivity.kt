@@ -155,7 +155,7 @@ class MainActivity : BaseActivity() {
         val now = System.currentTimeMillis()
         val last = Db.get(this).offers(now - 24 * 3_600_000L, now + 1000L, 1).firstOrNull()
         if (last == null) {
-            lo.addView(Ui.caption(this, "Nothing yet today. Go online in Dasher: the DashLens card appears on every offer.").apply { setPadding(0, dp(6), 0, 0) })
+            lo.addView(Ui.caption(this, "Nothing yet today. Go online in Dasher (or Uber, if switched on in Settings): the DashLens card appears on every offer.").apply { setPadding(0, dp(6), 0, 0) })
         } else {
             val col = when (last.verdict) { "TAKE" -> Ui.GREEN; "MAYBE" -> Ui.AMBER; else -> Ui.RED }
             val h = Ui.hrow(this).apply { setPadding(0, dp(8), 0, dp(4)) }

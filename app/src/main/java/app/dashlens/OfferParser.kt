@@ -4,6 +4,9 @@ import java.time.Duration
 import java.time.LocalTime
 
 /**
+ * Uber Driver's offer (verified from real screenshots) has no "Pickup" label and prints the whole trip on one line:
+ * "$4.32" + "Guaranteed (incl. tip)", "22 min (8.1 mi) total", then the pickup merchant, then the drop-off area.
+ *
  * What the Dasher offer screen actually shows (verified from real screenshots): pay "$5.00" + "Guaranteed (incl. tips)",
  * distance "1.4 mi", "Deliver by 9:44 AM", a "Pickup" label followed by the merchant name, and Accept / Decline.
  * It does NOT show an estimated trip time, so [shownMinutes] is 0 unless some Dasher version prints one.
@@ -17,7 +20,8 @@ data class Offer(
     val merchants: List<String>,
     val tipsIncluded: Boolean,
     val items: Int = 0,            // shop & deliver item count ("4 items"), 0 when not shown
-    val payPlus: Boolean = false   // pay shown as "$22.00+": a minimum, the real pay can be higher
+    val payPlus: Boolean = false,  // pay shown as "$22.00+": a minimum, the real pay can be higher
+    val platform: String = Platform.DOORDASH   // which driver app the offer came from
 ) {
     val merchant: String get() = merchants.firstOrNull() ?: ""
 }
@@ -33,6 +37,7 @@ object OfferParser {
     private val plusRe = Regex("""\$\s?\d{1,3}(?:\.\d{1,2})?\s*\+""")
     private val deliverByRe = Regex("""deliver\s+by\s+(\d{1,2}):(\d{2})\s*([ap])?\.?m?""", RegexOption.IGNORE_CASE)
     private val pickupLabelRe = Regex("""^pick-?up(\s+\d+)?$""", RegexOption.IGNORE_CASE)
+    private val uberTagRe = Regex("""^(delivery|exclusive|priority|customer verification|id check.*|close|accept|decline|guaranteed.*)$""", RegexOption.IGNORE_CASE)
     private val notMerchantRe = Regex("""^(customer\s+drop-?off|drop-?off.*|deliver.*|accept.*|decline.*)$""", RegexOption.IGNORE_CASE)
 
     private fun minutesIn(s: String): Double? {
@@ -81,8 +86,18 @@ object OfferParser {
         return 0.0
     }
 
-    /** Returns null unless the text looks like a DoorDash offer screen with a pay and a distance. */
-    fun parse(raw: List<String>, now: LocalTime = LocalTime.now()): Offer? {
+    /** On Uber's offer the pickup merchant is the line right under the "22 min (8.1 mi) total" line (tags like "Delivery" are skipped). */
+    internal fun uberMerchant(t: List<String>, comboAt: Int): String? {
+        for (i in comboAt + 1..minOf(comboAt + 2, t.lastIndex)) {
+            val s = t[i].trim()
+            if (s.isEmpty() || uberTagRe.matches(s) || payRe.containsMatchIn(s) || miRe.containsMatchIn(s) || minRe.containsMatchIn(s)) continue
+            return s
+        }
+        return null
+    }
+
+    /** Returns null unless the text looks like a driver-app offer screen with a pay and a distance. */
+    fun parse(raw: List<String>, now: LocalTime = LocalTime.now(), platform: String = Platform.DOORDASH): Offer? {
         if (!looksLikeOffer(raw)) return null
         val t = normalize(raw)
         val all = t.joinToString(" | ")
@@ -96,7 +111,12 @@ object OfferParser {
         } ?: money.first()
         val pay = payRe.find(t[pick])?.groupValues?.get(1)?.toDoubleOrNull() ?: return null
 
-        val combo = t.firstOrNull { miRe.containsMatchIn(it) && minutesIn(it) != null }
+        val legs = t.filter { miRe.containsMatchIn(it) && minutesIn(it) != null }
+        // Uber prints the whole trip as one "... total" line. If it prints separate legs (pickup, trip) and no total, they
+        // cannot be added up reliably, so the offer is reported as not read instead of being graded on half a trip.
+        val combo = if (platform == Platform.UBER) {
+            legs.firstOrNull { it.contains("total", true) } ?: (if (legs.size > 1) return null else legs.firstOrNull())
+        } else legs.firstOrNull()
         val miles = miRe.find(combo ?: t.firstOrNull { miRe.containsMatchIn(it) } ?: return null)
             ?.groupValues?.get(1)?.toDoubleOrNull() ?: return null
         val shown = if (combo != null) minutesIn(combo) ?: 0.0
@@ -107,6 +127,8 @@ object OfferParser {
             val name = t.getOrNull(i + 1)?.trim().orEmpty()
             if (name.isNotEmpty() && !notMerchantRe.matches(name) && !pickupLabelRe.matches(name)) merchants.add(name)
         }
+        if (merchants.isEmpty() && platform == Platform.UBER && combo != null)
+            uberMerchant(t, t.indexOf(combo))?.let { merchants.add(it) }
         val counted = countRe.find(all)?.groupValues?.get(1)?.toIntOrNull() ?: 0
         val pickups = maxOf(merchants.size, counted, 1).coerceIn(1, 6)
 
@@ -114,6 +136,6 @@ object OfferParser {
         val tips = all.contains("incl. tip", true) || all.contains("guaranteed", true)
         val plus = plusRe.containsMatchIn(t[pick]) || t.getOrNull(pick + 1)?.trim() == "+"
         val items = (itemsRe.find(all)?.groupValues?.get(1)?.toIntOrNull() ?: 0).let { if (it in 1..200) it else 0 }
-        return Offer(pay, miles, shown, windowMinutes(t, now), pickups, merchants, tips, items, plus)
+        return Offer(pay, miles, shown, windowMinutes(t, now), pickups, merchants, tips, items, plus, platform)
     }
 }

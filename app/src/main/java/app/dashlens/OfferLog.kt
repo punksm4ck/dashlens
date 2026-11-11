@@ -8,9 +8,10 @@ object OfferLog {
     @Volatile private var open = false
     @Volatile private var goneAt = 0L
     @Volatile private var wasOnOrder = false
+    @Volatile private var currentPlatform = Platform.DOORDASH
 
-    fun begin(id: Long, onOrderBefore: Boolean) {
-        currentId = id; open = true; goneAt = 0L; wasOnOrder = onOrderBefore
+    fun begin(id: Long, onOrderBefore: Boolean, platform: String = Platform.DOORDASH) {
+        currentId = id; open = true; goneAt = 0L; wasOnOrder = onOrderBefore; currentPlatform = platform
     }
 
     fun gone() { if (goneAt == 0L) goneAt = System.currentTimeMillis() }
@@ -20,8 +21,8 @@ object OfferLog {
     private fun inWindow() = goneAt == 0L || System.currentTimeMillis() - goneAt < 25_000L
 
     /** The screen changed to an order screen after the offer closed. Ignored when you were already on an order (stacked offers). */
-    fun autoAccepted(c: Context) {
-        if (open && currentId > 0L && !wasOnOrder && inWindow()) { Db.get(c).setOutcome(currentId, "ACCEPTED"); open = false }
+    fun autoAccepted(c: Context, platform: String = currentPlatform) {
+        if (open && currentId > 0L && !wasOnOrder && inWindow() && platform == currentPlatform) { Db.get(c).setOutcome(currentId, "ACCEPTED"); open = false }
     }
 
     /** You tapped "On order" yourself right after an offer: always counts. */

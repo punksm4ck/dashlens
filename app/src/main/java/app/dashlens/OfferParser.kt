@@ -37,7 +37,7 @@ object OfferParser {
     private val plusRe = Regex("""\$\s?\d{1,3}(?:\.\d{1,2})?\s*\+""")
     private val deliverByRe = Regex("""deliver\s+by\s+(\d{1,2}):(\d{2})\s*([ap])?\.?m?""", RegexOption.IGNORE_CASE)
     private val pickupLabelRe = Regex("""^pick-?up(\s+\d+)?$""", RegexOption.IGNORE_CASE)
-    private val uberTagRe = Regex("""^(delivery|exclusive|priority|customer verification|id check.*|close|accept|decline|package|verified|\d\.\d\d|guaranteed.*)$""", RegexOption.IGNORE_CASE)
+    private val uberTagRe = Regex("""^(delivery|exclusive|priority|customer verification|id check.*|close|accept|decline|match|package|verified|\d\.\d\d|guaranteed.*)$""", RegexOption.IGNORE_CASE)
     // a street address ("1480 Blackstock Ave, Simi Valley, CA 93063, USA"): Uber Package offers show the pickup address where a store name would be
     private val addressRe = Regex("""^\d{1,6}\s+.+\b(ave|avenue|st|street|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|hwy|pkwy|parkway|cir|circle)\b|,\s*usa$""", RegexOption.IGNORE_CASE)
     private val notMerchantRe = Regex("""^(customer\s+drop-?off|drop-?off.*|deliver.*|accept.*|decline.*)$""", RegexOption.IGNORE_CASE)
@@ -50,7 +50,8 @@ object OfferParser {
     }
 
     fun looksLikeOffer(texts: List<String>): Boolean = texts.any {
-        it.startsWith("accept", true) || it.startsWith("decline", true)
+        it.startsWith("accept", true) || it.startsWith("decline", true) ||
+            it.trim().equals("match", true)          // Uber Package offers have a "Match" button instead of "Accept"
     }
 
     /** Dasher sometimes draws money one character per node ("$", "5", ".", "0", "0"): glue those back together. */

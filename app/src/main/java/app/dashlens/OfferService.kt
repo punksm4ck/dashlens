@@ -131,9 +131,25 @@ class OfferService : AccessibilityService() {
         super.onDestroy()
     }
 
+    /**
+     * The window the event came from. An Uber offer can float over another app (Messages, Maps): then the active window
+     * is that other app and Uber's card would never be read. So when the active window is not the event's app, walk up
+     * from the event's own node to its window root.
+     */
+    private fun driverRoot(e: AccessibilityEvent): AccessibilityNodeInfo? {
+        val active = rootInActiveWindow
+        val pkg = e.packageName?.toString()
+        if (active != null && (pkg == null || active.packageName?.toString() == pkg)) return active
+        if (Platform.of(pkg) == null) return active
+        var n: AccessibilityNodeInfo = e.source ?: return active
+        var hops = 0
+        while (hops < 60) { val p = n.parent ?: break; n = p; hops++ }
+        return n
+    }
+
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e == null) return
-        val root = rootInActiveWindow ?: return
+        val root = driverRoot(e) ?: return
         val platform = Platform.of(root.packageName?.toString()) ?: return
         // Uber is opt-in: until it is switched on in Settings nothing is read from it
         if (platform == Platform.UBER && !Prefs.getBool(this, "uber_enabled", false)) return
@@ -142,7 +158,10 @@ class OfferService : AccessibilityService() {
         collect(root, texts, 0)
 
         val joined = texts.joinToString(" | ")
-        if ((joined.contains("accept", true) || joined.contains("decline", true)) && joined != lastDump) {
+        // Only offer-looking screens replace the captured text (Uber's "already accepted" dialog used to wipe it)
+        val dumpable = if (platform == Platform.UBER) OfferParser.looksLikeOffer(texts)
+            else joined.contains("accept", true) || joined.contains("decline", true)
+        if (dumpable && joined != lastDump) {
             lastDump = joined
             Prefs.putString(this, "last_dump", "[" + platform + "] " + joined.take(4000))
         }
@@ -368,7 +387,7 @@ class OfferService : AccessibilityService() {
         fun visit(n: AccessibilityNodeInfo?, depth: Int) {
             if (n == null || depth > 40) return
             val t = (n.text?.toString() ?: n.contentDescription?.toString() ?: "").trim()
-            if (t.startsWith("decline", true) || t.startsWith("accept", true)) {
+            if (t.startsWith("decline", true) || t.startsWith("accept", true) || t.equals("match", true)) {
                 val own = Rect(); n.getBoundsInScreen(own)
                 var use = own
                 var p = n.parent

@@ -22,7 +22,7 @@ object StateDetector {
     const val DEF_OFFLINE = "dash now,start dash,go online,schedule a dash"
 
     const val UBER_DEF_ORDER = "you've arrived,start shopping,expected by"
-    const val UBER_DEF_ONLINE = "finding trips"
+    const val UBER_DEF_ONLINE = "finding trips,you're online"
     const val UBER_DEF_OFFLINE = "you're offline"
 
     /** Preference keys for the order / online / offline word lists of a platform. */

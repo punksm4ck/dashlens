@@ -240,6 +240,28 @@ class UberSupportTest {
         assertNull(StateMerge.combine(mapOf(Platform.UBER to Seen(DState.ORDER, t0)), t0 + 46 * min))
     }
 
+    // ---- Package offer with a "Match" button (real phone screenshot, floating over Messages)
+
+    private val matchOffer = listOf("Package (5)", "Close", "\$37.61", "Guaranteed (incl. tip)", "1 hr 37 min (30.3 mi) total",
+        "LOWE'S OF SIMI VALLEY, CA", "Dorado Ct & E Avenida de Los Arboles, Thousand Oaks", "Customer verification", "Match")
+
+    @Test fun matchButtonCountsAsAnOfferScreen() {
+        assertTrue(OfferParser.looksLikeOffer(matchOffer))
+        assertFalse(OfferParser.looksLikeOffer(listOf("Home", "\$18.09", "Finding trips")))
+    }
+
+    @Test fun readsAMatchPackageOffer() {
+        val o = OfferParser.parse(matchOffer, platform = Platform.UBER)!!
+        assertEquals(37.61, o.pay, 0.001)
+        assertEquals(30.3, o.miles, 0.001)
+        assertEquals("LOWE'S OF SIMI VALLEY, CA", o.merchant)
+    }
+
+    @Test fun youreOnlineMeansUberOnline() {
+        val d = StateDetector.words(StateDetector.UBER_DEF_ONLINE)
+        assertEquals(DState.ONLINE, StateDetector.classify(listOf("Home", "You\u2019re online"), false, emptyList(), d, emptyList()))
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

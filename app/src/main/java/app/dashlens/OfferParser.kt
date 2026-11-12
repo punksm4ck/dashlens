@@ -37,7 +37,9 @@ object OfferParser {
     private val plusRe = Regex("""\$\s?\d{1,3}(?:\.\d{1,2})?\s*\+""")
     private val deliverByRe = Regex("""deliver\s+by\s+(\d{1,2}):(\d{2})\s*([ap])?\.?m?""", RegexOption.IGNORE_CASE)
     private val pickupLabelRe = Regex("""^pick-?up(\s+\d+)?$""", RegexOption.IGNORE_CASE)
-    private val uberTagRe = Regex("""^(delivery|exclusive|priority|customer verification|id check.*|close|accept|decline|guaranteed.*)$""", RegexOption.IGNORE_CASE)
+    private val uberTagRe = Regex("""^(delivery|exclusive|priority|customer verification|id check.*|close|accept|decline|package|verified|\d\.\d\d|guaranteed.*)$""", RegexOption.IGNORE_CASE)
+    // a street address ("1480 Blackstock Ave, Simi Valley, CA 93063, USA"): Uber Package offers show the pickup address where a store name would be
+    private val addressRe = Regex("""^\d{1,6}\s+.+\b(ave|avenue|st|street|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|hwy|pkwy|parkway|cir|circle)\b|,\s*usa$""", RegexOption.IGNORE_CASE)
     private val notMerchantRe = Regex("""^(customer\s+drop-?off|drop-?off.*|deliver.*|accept.*|decline.*)$""", RegexOption.IGNORE_CASE)
 
     private fun minutesIn(s: String): Double? {
@@ -91,6 +93,7 @@ object OfferParser {
         for (i in comboAt + 1..minOf(comboAt + 2, t.lastIndex)) {
             val s = t[i].trim()
             if (s.isEmpty() || uberTagRe.matches(s) || payRe.containsMatchIn(s) || miRe.containsMatchIn(s) || minRe.containsMatchIn(s)) continue
+            if (addressRe.containsMatchIn(s)) return null   // an address, not a business name: no merchant on this offer
             return s
         }
         return null

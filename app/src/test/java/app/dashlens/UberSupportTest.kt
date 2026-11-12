@@ -57,6 +57,39 @@ class UberSupportTest {
         assertEquals(listOf("Chipotle"), o.merchants)
     }
 
+    /** An Uber "Package" offer: the pickup is an address, not a store, and the trip is long. */
+    private fun uberPackageOffer() = listOf(
+        "Package", "Exclusive", "$29.25", "4.88", "Verified", "Guaranteed (incl. tip)", "1 hr 39 min (41.8 mi) total",
+        "1480 Blackstock Ave, Simi Valley, CA 93063-3114, USA", "Flight Ave & W 74th St, Los Angeles", "Accept"
+    )
+
+    @Test fun readsAnUberPackageOfferAndDoesNotTreatTheAddressAsAMerchant() {
+        val o = OfferParser.parse(uberPackageOffer(), now, Platform.UBER)
+        assertNotNull(o)
+        o!!
+        assertEquals(29.25, o.pay, 0.001)
+        assertEquals(41.8, o.miles, 0.001)
+        assertEquals(99.0, o.shownMinutes, 0.001)
+        assertTrue(o.merchants.isEmpty())
+        assertTrue(o.tipsIncluded)
+    }
+
+    @Test fun aLongPackageOfferIsGradedOnItsRealCost() {
+        // 41.8 mi + 20% empty = 50.16 real mi, vehicle cost 16.79, net 12.46 over 99 + 7 + 3 + 20.06 = 129.06 min: about $5.79/hr
+        val o = OfferParser.parse(uberPackageOffer(), now, Platform.UBER)!!
+        val r = Analyzer.grade(o, defaults(), flags, null, null, null)
+        assertEquals(5.79, r.netHr, 0.02)
+        assertEquals(29.25 / 50.16, r.perMile, 0.0001)
+        assertEquals(Verdict.DECLINE, r.verdict)
+    }
+
+    @Test fun merchantsThatStartWithADigitAreStillMerchants() {
+        for (name in listOf("7-Eleven", "99 Ranch Market", "85\u00B0C Bakery Cafe", "5 Guys")) {
+            val o = OfferParser.parse(listOf("$6.10", "Guaranteed (incl. tip)", "15 min (5.0 mi) total", name, "1st St, Simi Valley", "Accept"), now, Platform.UBER)
+            assertEquals(listOf(name), o!!.merchants)
+        }
+    }
+
     @Test fun skipsTagsToFindTheUberMerchant() {
         val o = OfferParser.parse(
             listOf("$6.10", "Guaranteed (incl. tip)", "15 min (5.0 mi) total", "Delivery", "Taco Bell", "1st St, Simi Valley", "Accept"),

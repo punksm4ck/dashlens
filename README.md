@@ -45,7 +45,7 @@ DashLens can also grade offers and log miles for the Uber Driver app. It is **of
 - Built from real Uber delivery screens. Ride requests and other Uber layouts are not read yet: if an offer is not recognized the card simply does not appear. Use **Copy captured offer text** in Settings to send a sample.
 
 ## Mileage and time log
-1. DashLens notifies you when Dasher looks active; tap **Start shift** in that notification (or in the app).
+1. DashLens notifies you when Dasher or Uber looks active; tap **Start shift** in that notification (or in the app). Or switch on **Start a shift automatically** in Settings and it starts by itself when you go online.
 2. GPS logging, Online vs On order, auto-detected with manual override from the notification.
 3. A shift auto-stops after 30 min of auto-detected "not dashing" (setting; 0 = off). Manual pauses never auto-stop.
 4. Notification shows today's estimated income, accepted offers, $/hr, miles and goal progress.

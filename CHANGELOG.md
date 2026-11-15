@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [4.3.0] - 2026-11-11
 
 ### Added
+- Auto start (opt-in): **Settings > Start a shift automatically when DashLens sees you go online**. Going online on DoorDash or Uber then starts the shift and logs miles without a tap. It waits 10 minutes after you stop a shift by hand, and if Android refuses to start location tracking from the background you still get the Start shift notification.
 - Uber Driver support (opt-in). Switch on **Settings > Also read the Uber Driver app**; until then nothing is read from Uber. DashLens reads Uber delivery offers (pay, the "22 min (8.1 mi) total" line, pickup merchant), grades them like Dasher offers using the time Uber shows, and detects Uber's Finding trips (online) and arrival / navigation (on order) screens. Offer cards and history are tagged with the app.
 - If you use both apps, the shift state is the strongest recent state of either app (On order beats Online beats Paused), so checking Uber during a DoorDash order no longer ends that order early. DoorDash-only use behaves as before.
 - Offers record which app they came from (database v5; existing offers are marked DoorDash). The offers CSV has a Platform column and the money summary splits accepted-offer income by app when both are used.

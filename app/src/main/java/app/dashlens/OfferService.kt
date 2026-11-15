@@ -73,6 +73,7 @@ class OfferService : AccessibilityService() {
         if (!isOffer) lastDetected = ds
 
         if (!Tracker.running) {
+            if (tryAutoStart(platform, own, now)) return
             if (ds != DState.OFFLINE) maybePromptStart(platform)
             return
         }
@@ -85,6 +86,24 @@ class OfferService : AccessibilityService() {
             pendingState = ds
             handler.removeCallbacks(applyPending)
             handler.postDelayed(applyPending, 3000L)
+        }
+    }
+
+    private var lastAutoTry = 0L
+
+    /** Starts the shift by itself when the "auto start" switch is on. False = not started (the caller falls back to the notification). */
+    private fun tryAutoStart(platform: String, own: DState, now: Long): Boolean {
+        val on = Prefs.getBool(this, "auto_start", false)
+        if (!AutoStart.shouldStart(on, Tracker.running, own, now, Prefs.getLong(this, "last_manual_stop"), lastAutoTry)) return false
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return false
+        lastAutoTry = now
+        return try {
+            TrackerService.start(this)
+            Prompts.cancelStart(this)
+            Prompts.info(this, "Shift started", "DashLens saw you go online on " + platform + " and started logging miles.")
+            true
+        } catch (e: Exception) {
+            false      // Android does not allow starting location tracking from the background right now
         }
     }
 

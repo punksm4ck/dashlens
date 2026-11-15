@@ -81,7 +81,10 @@ class TrackerService : Service(), LocationListener {
         }
 
         when (intent?.action) {
-            ACTION_STOP -> { stopTracking(); return START_NOT_STICKY }
+            ACTION_STOP -> {
+                Prefs.putLong(this, "last_manual_stop", System.currentTimeMillis())   // auto start waits 10 min after this
+                stopTracking(); return START_NOT_STICKY
+            }
             ACTION_ONLINE -> Tracker.setState(DState.ONLINE, true)
             ACTION_ORDER -> Tracker.setState(DState.ORDER, true)
             ACTION_PAUSE -> Tracker.setState(DState.OFFLINE, true)

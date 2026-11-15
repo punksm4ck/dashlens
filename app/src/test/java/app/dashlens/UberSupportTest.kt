@@ -262,6 +262,39 @@ class UberSupportTest {
         assertEquals(DState.ONLINE, StateDetector.classify(listOf("Home", "You\u2019re online"), false, emptyList(), d, emptyList()))
     }
 
+    // ---- auto start of a shift
+
+    private val MIN = 60_000L
+    private fun start(enabled: Boolean = true, running: Boolean = false, seen: DState = DState.ONLINE, now: Long = 10_000 * MIN, stop: Long = 0L, tried: Long = 0L) =
+        AutoStart.shouldStart(enabled, running, seen, now, stop, tried)
+
+    @Test fun autoStartIsOffByDefault() {
+        assertFalse(Prefs.SWITCHES.first { it.key == "auto_start" }.def)
+    }
+
+    @Test fun startsWhenYouGoOnlineOrAreOnAnOrder() {
+        assertTrue(start())
+        assertTrue(start(seen = DState.ORDER))
+    }
+
+    @Test fun neverStartsWhenOffRunningOrSwitchedOff() {
+        assertFalse(start(seen = DState.OFFLINE))
+        assertFalse(start(running = true))
+        assertFalse(start(enabled = false))
+    }
+
+    @Test fun waitsTenMinutesAfterAManualStop() {
+        val now = 10_000 * MIN
+        assertFalse(start(now = now, stop = now - 9 * MIN))
+        assertTrue(start(now = now, stop = now - 11 * MIN))
+    }
+
+    @Test fun triesAtMostOnceAMinute() {
+        val now = 10_000 * MIN
+        assertFalse(start(now = now, tried = now - 30_000L))
+        assertTrue(start(now = now, tried = now - 61_000L))
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

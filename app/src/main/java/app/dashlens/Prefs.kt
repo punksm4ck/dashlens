@@ -42,6 +42,7 @@ object Prefs {
     val SWITCHES = listOf(
         Sw("uber_enabled", "Also read the Uber Driver app (offer card, online / on order). Off = DashLens ignores Uber completely", false),
         Sw("auto_state", "Auto-detect Online / On order from the driver app screens", true),
+        Sw("auto_start", "Start a shift automatically when DashLens sees you go online on DoorDash or Uber (needs location set to Allow all the time; if Android refuses you get the Start shift notification instead)", false),
         Sw("prompt_start", "Notify me to start a shift when Dasher looks active", true),
         Sw("auto_calibrate", "Learn my real order times and merchant history from my own shifts", true),
         Sw("overlay_bottom", "Show the offer card at the bottom of the screen", false),

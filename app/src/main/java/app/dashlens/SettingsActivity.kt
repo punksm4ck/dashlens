@@ -3,6 +3,9 @@ package app.dashlens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -138,6 +141,16 @@ class SettingsActivity : BaseActivity() {
         val ps = Prefs.getString(this, "parse_status")
         d.addView(Ui.text(this, "Last offer read: " + (if (ps.isEmpty()) "no offer seen yet" else ps), 13f,
             if (ps.startsWith("OK")) Ui.GREEN else if (ps.startsWith("FAILED")) Ui.RED else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
+        val au = Prefs.getString(this, "auto_start_status")
+        d.addView(Ui.text(this, "Auto start: " + (if (au.isEmpty()) "nothing yet (no online screen seen since the switch was turned on)" else au), 13f,
+            if (au.contains("STARTED")) Ui.GREEN else if (au.contains("BLOCKED") || au.contains("FAILED")) Ui.RED else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
+        val overlayOk = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)
+        d.addView(Ui.text(this, "Display over other apps: " + (if (overlayOk) "allowed (lets Android accept auto start)" else "not allowed"), 13f,
+            if (overlayOk) Ui.GREEN else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(4)) })
+        if (!overlayOk) d.addView(Ui.button(this, "Allow display over other apps (helps auto start)") {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
+        })
+        d.addView(Ui.button(this, "Copy auto start status") { copy("auto_start_status") })
         val ls = Prefs.getString(this, "layout_status")
         d.addView(Ui.text(this, "Offer card placement: " + (if (ls.isEmpty()) "no offer card shown yet" else ls), 13f, Ui.MUTED, true)
             .apply { setPadding(0, 0, 0, dp(8)) })

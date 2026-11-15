@@ -75,8 +75,10 @@ class TrackerService : Service(), LocationListener {
         Tracker.restore(this)
         try {
             goForeground()                               // must happen quickly after startForegroundService
-        } catch (e: SecurityException) {
-            stopSelf()                                   // location permission missing
+        } catch (e: Exception) {
+            // location permission missing, or Android refused a background start (ForegroundServiceStartNotAllowedException)
+            Prefs.putString(this, "auto_start_status", "FAILED in the tracking service (" + e.javaClass.simpleName + "): " + (e.message ?: "").take(100))
+            stopSelf()
             return START_NOT_STICKY
         }
 

@@ -94,17 +94,40 @@ class OfferService : AccessibilityService() {
     /** Starts the shift by itself when the "auto start" switch is on. False = not started (the caller falls back to the notification). */
     private fun tryAutoStart(platform: String, own: DState, now: Long): Boolean {
         val on = Prefs.getBool(this, "auto_start", false)
-        if (!AutoStart.shouldStart(on, Tracker.running, own, now, Prefs.getLong(this, "last_manual_stop"), lastAutoTry)) return false
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return false
+        if (!on) { autoNote("OFF: the switch in Settings is off"); return false }
+        val lastStop = Prefs.getLong(this, "last_manual_stop")
+        if (!AutoStart.shouldStart(on, Tracker.running, own, now, lastStop, lastAutoTry)) {
+            if (!Tracker.running && own != DState.OFFLINE && now - lastStop < AutoStart.COOLDOWN_AFTER_MANUAL_STOP_MS)
+                autoNote("WAITING: you stopped a shift by hand less than 10 min ago")
+            return false
+        }
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            autoNote("BLOCKED: location permission is not granted"); return false
+        }
         lastAutoTry = now
         return try {
             TrackerService.start(this)
             Prompts.cancelStart(this)
             Prompts.info(this, "Shift started", "DashLens saw you go online on " + platform + " and started logging miles.")
+            autoNote("STARTED on " + platform + " (start request accepted)")
             true
         } catch (e: Exception) {
-            false      // Android does not allow starting location tracking from the background right now
+            // Android does not allow starting location tracking from the background right now: ask with the notification instead
+            autoNote("BLOCKED by Android (" + e.javaClass.simpleName + "): " + (e.message ?: "").take(100))
+            Prefs.putLong(this, "last_prompt", 0L)
+            maybePromptStart(platform)
+            false
         }
+    }
+
+    private var lastAutoNote = ""
+    /** What auto start did last, shown in Settings > Diagnostics. Written only when it changes. */
+    private fun autoNote(text: String) {
+        val stamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        val line = "[" + stamp + "] " + text
+        if (text == lastAutoNote) return
+        lastAutoNote = text
+        Prefs.putString(this, "auto_start_status", line)
     }
 
     private fun maybePromptStart(platform: String) {

@@ -99,7 +99,7 @@ class OfferService : AccessibilityService() {
     private val endCheck = object : Runnable {
         override fun run() {
             try { checkAutoEnd() } catch (_: Exception) {}
-            handler.postDelayed(this, 30_000L)
+            handler.postDelayed(this, 10_000L)
         }
     }
 
@@ -195,7 +195,7 @@ class OfferService : AccessibilityService() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         instance = this
         handler.removeCallbacks(endCheck)
-        handler.postDelayed(endCheck, 30_000L)
+        handler.postDelayed(endCheck, 10_000L)
         // lets DashLens read every window of a driver app (Uber's offer card is a window of its own)
         try {
             val info = serviceInfo

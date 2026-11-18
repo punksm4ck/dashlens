@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [4.3.0] - 2026-11-11
 
 ### Added
+- Fixed: the Dasher ratings screen ("Acceptance rate") was mistaken for an offer and overwrote the captured offer text. Only real Accept / Decline buttons (and Uber's Match) count now.
+- Uber offers are now also recognised by their numbers (a pay line plus a "22 min (8.1 mi) total" line), so an offer with an unexpected button label still gets a card. Settings > Diagnostics keeps the last 3 Uber screens that looked like an offer.
 - Settings > Diagnostics now shows what auto start did last (started, waiting, or blocked by Android and why), plus an "Allow display over other apps" button. Android only lets an app start location tracking from the background in certain cases (for example with that permission, or with battery optimisation off); without it you get the Start shift notification.
 - Auto start (opt-in): **Settings > Start a shift automatically when DashLens sees you go online**. Going online on DoorDash or Uber then starts the shift and logs miles without a tap. It waits 10 minutes after you stop a shift by hand, and if Android refuses to start location tracking from the background you still get the Start shift notification.
 - Uber Driver support (opt-in). Switch on **Settings > Also read the Uber Driver app**; until then nothing is read from Uber. DashLens reads Uber delivery offers (pay, the "22 min (8.1 mi) total" line, pickup merchant), grades them like Dasher offers using the time Uber shows, and detects Uber's Finding trips (online) and arrival / navigation (on order) screens. Offer cards and history are tagged with the app.

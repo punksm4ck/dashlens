@@ -295,6 +295,37 @@ class UberSupportTest {
         assertTrue(start(now = now, tried = now - 61_000L))
     }
 
+    // ---- offer detection must not be fooled by other screens, and must not need a button
+
+    @Test fun ratingsScreenIsNotAnOffer() {
+        val ratings = listOf("Platinum", "Overall rating", "88", "Acceptance rate", "84%", "26 of 30 points", "Last 30-day orders", "59")
+        assertFalse(OfferParser.looksLikeOffer(ratings))
+        assertNull(OfferParser.parse(ratings))
+    }
+
+    @Test fun realAcceptAndDeclineButtonsStillCount() {
+        assertTrue(OfferParser.looksLikeOffer(listOf("\$6.00", "Decline")))
+        assertTrue(OfferParser.looksLikeOffer(listOf("\$6.00", "Accept")))
+    }
+
+    @Test fun uberOfferIsRecognisedWithoutAnyButton() {
+        val noButton = matchOffer.filter { !it.equals("Match", true) }
+        assertFalse(OfferParser.looksLikeOffer(noButton))                     // DoorDash rules: needs a button
+        assertTrue(OfferParser.looksLikeOffer(noButton, Platform.UBER))       // Uber: pay + "... total" line is enough
+        val o = OfferParser.parse(noButton, platform = Platform.UBER)!!
+        assertEquals(37.61, o.pay, 0.001)
+        assertEquals(30.3, o.miles, 0.001)
+    }
+
+    @Test fun uberHomeAndArrivalScreensAreNotOffers() {
+        val home = listOf("Home", "\$18.09", "Earnings Trends", "Finding trips")
+        val arrived = listOf("You've arrived", "vons:2047", "5805 E Los Angeles Ave, Simi Valley, CA 93063-4256", "Scan to verify", "10 packages (2 stops)", "Complete pickup")
+        assertFalse(OfferParser.looksLikeOffer(home, Platform.UBER))
+        assertFalse(OfferParser.looksLikeOffer(arrived, Platform.UBER))
+        assertFalse(OfferParser.uberMaybeOffer(home))
+        assertFalse(OfferParser.uberMaybeOffer(arrived))
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

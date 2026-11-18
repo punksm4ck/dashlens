@@ -49,10 +49,27 @@ object OfferParser {
         return h * 60 + (m ?: 0.0)
     }
 
-    fun looksLikeOffer(texts: List<String>): Boolean = texts.any {
-        it.startsWith("accept", true) || it.startsWith("decline", true) ||
-            it.trim().equals("match", true)          // Uber Package offers have a "Match" button instead of "Accept"
+    /** An offer button: Accept / Decline, or Uber's "Match". "Acceptance rate" (Dasher ratings screen) is not a button. */
+    private fun isOfferButton(s: String): Boolean =
+        (s.startsWith("accept", true) && !s.startsWith("acceptance", true) && !s.startsWith("accepted", true)) ||
+            (s.startsWith("decline", true) && !s.startsWith("declined", true)) ||
+            s.trim().equals("match", true)
+
+    /** An Uber offer by its numbers, whatever its button says: a pay line plus one "22 min (8.1 mi) total" line. */
+    fun uberSignature(texts: List<String>): Boolean {
+        val t = normalize(texts)
+        return t.any { payRe.containsMatchIn(it) } &&
+            t.any { miRe.containsMatchIn(it) && minutesIn(it) != null && it.contains("total", true) }
     }
+
+    /** Looser, for capturing the screen text only: any pay line together with any mile figure. */
+    fun uberMaybeOffer(texts: List<String>): Boolean {
+        val t = normalize(texts)
+        return t.any { payRe.containsMatchIn(it) } && t.any { miRe.containsMatchIn(it) }
+    }
+
+    fun looksLikeOffer(texts: List<String>, platform: String = Platform.DOORDASH): Boolean =
+        texts.any { isOfferButton(it) } || (platform == Platform.UBER && uberSignature(texts))
 
     /** Dasher sometimes draws money one character per node ("$", "5", ".", "0", "0"): glue those back together. */
     fun normalize(texts: List<String>): List<String> {
@@ -102,7 +119,7 @@ object OfferParser {
 
     /** Returns null unless the text looks like a driver-app offer screen with a pay and a distance. */
     fun parse(raw: List<String>, now: LocalTime = LocalTime.now(), platform: String = Platform.DOORDASH): Offer? {
-        if (!looksLikeOffer(raw)) return null
+        if (!looksLikeOffer(raw, platform)) return null
         val t = normalize(raw)
         val all = t.joinToString(" | ")
 

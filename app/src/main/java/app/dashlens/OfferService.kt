@@ -61,7 +61,7 @@ class OfferService : AccessibilityService() {
 
     /** Feeds the mileage log and offer outcomes: works out Online / On order / not dashing from the driver app screen. */
     private fun trackScreen(texts: List<String>, platform: String) {
-        val isOffer = OfferParser.looksLikeOffer(texts)
+        val isOffer = OfferParser.looksLikeOffer(texts, platform)
         val own = StateDetector.detect(this, texts, isOffer, platform)
         StateDetector.log(this, own, texts, platform)
         if (own == null) return
@@ -118,6 +118,16 @@ class OfferService : AccessibilityService() {
             maybePromptStart(platform)
             false
         }
+    }
+
+    private var lastUberCapture = ""
+    /** The last 3 Uber screens that look like an offer, so a later screen (accept dialog, arrival) cannot wipe the evidence. */
+    private fun keepUberCapture(joined: String) {
+        if (joined == lastUberCapture) return
+        lastUberCapture = joined
+        val stamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        val old = Prefs.getString(this, "uber_dumps").split("\n====\n").filter { it.isNotBlank() }
+        Prefs.putString(this, "uber_dumps", (old + ("[" + stamp + "] " + joined.take(1500))).takeLast(3).joinToString("\n====\n"))
     }
 
     private var lastAutoNote = ""
@@ -201,8 +211,8 @@ class OfferService : AccessibilityService() {
 
         val joined = texts.joinToString(" | ")
         // Only offer-looking screens replace the captured text (Uber's "already accepted" dialog used to wipe it)
-        val dumpable = if (platform == Platform.UBER) OfferParser.looksLikeOffer(texts)
-            else joined.contains("accept", true) || joined.contains("decline", true)
+        val dumpable = OfferParser.looksLikeOffer(texts, platform)
+        if (platform == Platform.UBER && (dumpable || OfferParser.uberMaybeOffer(texts))) keepUberCapture(joined)
         if (dumpable && joined != lastDump) {
             lastDump = joined
             Prefs.putString(this, "last_dump", "[" + platform + "] " + joined.take(4000))
@@ -212,7 +222,7 @@ class OfferService : AccessibilityService() {
 
         val offer = OfferParser.parse(texts, platform = platform)
         val tag = if (platform == Platform.UBER) " (Uber)" else ""
-        if (offer == null && OfferParser.looksLikeOffer(texts))
+        if (offer == null && OfferParser.looksLikeOffer(texts, platform))
             Prefs.putString(this, "parse_status", "FAILED" + tag + ": an offer screen was seen but pay or miles could not be read. Copy the offer text below.")
         if (offer != null)
             Prefs.putString(this, "parse_status", "OK" + tag + ": read \$" + offer.pay + ", " + offer.miles + " mi" +

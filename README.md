@@ -42,6 +42,7 @@ DashLens can also grade offers and log miles for the Uber Driver app. It is **of
 - Reads Uber delivery offers: the pay, the "22 min (8.1 mi) total" line and the pickup merchant. Uber shows the trip time, so DashLens uses it (plus your wait and drop-off times) instead of estimating.
 - Online ("Finding trips") and on-order screens are detected like Dasher's. If you use both apps, the shift counts as On order while either app has an order, so a look at Uber during a DoorDash order does not cut that order short.
 - Every offer is tagged DoorDash or Uber. Offer history, the offers CSV and the money summary show which app the accepted offers came from.
+- Uber hides its offer card from Android's normal screen read, so DashLens reads it from a **screenshot** instead (Android 11+; switch **Read Uber offer cards from a screenshot** in Settings). The screenshot is read on the phone with a text-recognition model built into the app, held in memory only, never saved or sent. Turn the setting off to stop it.
 - Built from real Uber delivery screens. Ride requests and other Uber layouts are not read yet: if an offer is not recognized the card simply does not appear. Use **Copy captured offer text** in Settings to send a sample.
 
 ## Mileage and time log

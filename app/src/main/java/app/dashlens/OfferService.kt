@@ -40,7 +40,7 @@ class OfferService : AccessibilityService() {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
-    private val timeoutRunnable = Runnable { hide() }
+    private val timeoutRunnable = Runnable { ocrShowing = false; hide() }
 
     private val goneRunnable = Runnable {
         gonePending = false
@@ -246,6 +246,8 @@ class OfferService : AccessibilityService() {
         val counts = ArrayList<Int>()
         for (r in roots) { val n0 = texts.size; collect(r, texts, 0); counts.add(texts.size - n0) }
         if (platform == Platform.UBER) windowNote(roots.size, counts, OfferParser.looksLikeOffer(texts, platform))
+        // Uber hides its offer card from the accessibility read (the whole tree comes back empty while it is up): read it from a screenshot
+        if (platform == Platform.UBER && texts.isEmpty()) maybeOcr()
 
         val joined = texts.joinToString(" | ")
         // Only offer-looking screens replace the captured text (Uber's "already accepted" dialog used to wipe it)
@@ -266,31 +268,105 @@ class OfferService : AccessibilityService() {
             Prefs.putString(this, "parse_status", "OK" + tag + ": read \$" + offer.pay + ", " + offer.miles + " mi" +
                 (if (offer.merchant.isNotEmpty()) ", " + offer.merchant else ", merchant not found"))
         if (offer == null) {
+            if (ocrShowing) return      // the screenshot route owns this card and hides it itself
             // offer screen gone (accepted / declined / expired): hide shortly, avoids flicker
             handler.removeCallbacks(timeoutRunnable)
             if (!gonePending) { gonePending = true; handler.postDelayed(goneRunnable, 700) }
             return
         }
 
+        presentOffer(offer, roots, null)
+    }
+
+    /** Shows the card for an offer, or just keeps it alive when it is the same offer. [ocrBands] = button rows found in a screenshot (no windows to search). */
+    private fun presentOffer(offer: Offer, roots: List<AccessibilityNodeInfo>, ocrBands: List<Band>?) {
         gonePending = false
         handler.removeCallbacks(goneRunnable)
         handler.removeCallbacks(resolveRunnable)
         handler.removeCallbacks(timeoutRunnable)
         OfferLog.reappeared()
 
-        val key = "$platform|${offer.pay}|${offer.miles}|${offer.merchants.joinToString("+")}"
+        val key = "${offer.platform}|${offer.pay}|${offer.miles}|${offer.merchants.joinToString("+")}"
         if (key == lastKey && overlay != null) {
-            relayout(roots)
+            if (ocrBands == null) relayout(roots)
             handler.postDelayed(timeoutRunnable, 45_000)
             return
         }
         lastKey = key
-        bands = roots.flatMap { findBands(it) }
+        bands = ocrBands ?: roots.flatMap { findBands(it) }
         val result = Analyzer.analyze(this, offer)
         logOffer(offer, result, key)
         show(offer, result)
         feedback(result)
         handler.postDelayed(timeoutRunnable, 45_000)
+    }
+
+    // ---- Uber offer card read from a screenshot
+
+    private var ocrBusy = false
+    private var lastOcrAt = 0L
+    private var ocrShowing = false
+    private var ocrMisses = 0
+
+    private val ocrRecheck = object : Runnable {
+        override fun run() {
+            if (!ocrShowing) return
+            if (ocrBusy) { handler.postDelayed(this, 1000L); return }
+            runOcr(true)
+        }
+    }
+
+    /** At most one screenshot every 2.5 s, and only while Uber's tree is empty (an offer card, or Uber in the background). */
+    private fun maybeOcr() {
+        if (!Prefs.getBool(this, "uber_ocr", true) || ocrBusy || ocrShowing) return
+        val now = System.currentTimeMillis()
+        if (now - lastOcrAt < 2500L) return
+        lastOcrAt = now
+        runOcr(false)
+    }
+
+    private fun runOcr(recheck: Boolean) {
+        ocrBusy = true
+        OfferOcr.read(this) { lines, why ->
+            ocrBusy = false
+            if (lines == null) {
+                ocrNote("FAILED: " + why)
+                if (recheck && ocrShowing) handler.postDelayed(ocrRecheck, 2500L)
+                return@read
+            }
+            val texts = OcrText.texts(lines)
+            val offer = OfferParser.parse(texts, platform = Platform.UBER)
+            // keep the text only when it looks like an offer: other apps on screen are never stored
+            if (OfferParser.looksLikeOffer(texts, Platform.UBER) || OfferParser.uberMaybeOffer(texts))
+                keepUberCapture("[screenshot] " + texts.joinToString(" | "))
+            if (offer != null) {
+                ocrNote("OK: read \$" + offer.pay + ", " + offer.miles + " mi" + (if (offer.merchant.isNotEmpty()) ", " + offer.merchant else ", merchant not found"))
+                Prefs.putString(this, "parse_status", "OK (Uber, from screenshot): read \$" + offer.pay + ", " + offer.miles + " mi" +
+                    (if (offer.merchant.isNotEmpty()) ", " + offer.merchant else ", merchant not found"))
+                ocrMisses = 0
+                ocrShowing = true
+                presentOffer(offer, emptyList(), OcrText.bands(lines, dp(20)))
+                handler.removeCallbacks(ocrRecheck)
+                handler.postDelayed(ocrRecheck, 2500L)
+            } else if (recheck) {
+                ocrMisses++
+                if (ocrMisses >= 2) {          // two looks in a row without the offer: it was accepted, declined or expired
+                    ocrShowing = false
+                    goneRunnable.run()
+                } else handler.postDelayed(ocrRecheck, 2500L)
+            } else {
+                ocrNote("screenshot read, no Uber offer on screen")
+            }
+        }
+    }
+
+    private var lastOcrNote = ""
+    /** What the screenshot route did last, for Settings > Diagnostics. Written only when the result changes. */
+    private fun ocrNote(text: String) {
+        if (text == lastOcrNote) return
+        lastOcrNote = text
+        val stamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        Prefs.putString(this, "uber_ocr_status", "[" + stamp + "] " + text)
     }
 
     /** One history row per distinct offer (the same offer re-appearing within a minute is not logged twice). */

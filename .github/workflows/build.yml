@@ -18,6 +18,11 @@ jobs:
         run: gradle testDebugUnitTest --no-daemon
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
+      - name: Check DashLens still has no internet permission
+        run: |
+          AAPT2=$(ls $ANDROID_HOME/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT2" dump permissions app/build/outputs/apk/debug/app-debug.apk | tee permissions.txt
+          if grep -q "android.permission.INTERNET" permissions.txt; then echo "INTERNET permission found: DashLens must have none"; exit 1; fi
       - name: Lint (report only, never fails the build)
         run: gradle lintDebug --no-daemon
       - uses: actions/upload-artifact@v4

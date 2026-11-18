@@ -151,6 +151,9 @@ class SettingsActivity : BaseActivity() {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
         })
         d.addView(Ui.button(this, "Copy auto start status") { copy("auto_start_status") })
+        val os = Prefs.getString(this, "uber_ocr_status")
+        d.addView(Ui.text(this, "Uber screenshot read: " + (if (os.isEmpty()) "not used yet" else os), 13f,
+            if (os.contains("OK")) Ui.GREEN else if (os.contains("FAILED")) Ui.RED else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
         val wsn = Prefs.getString(this, "win_status")
         d.addView(Ui.text(this, "Uber windows: " + (if (wsn.isEmpty()) "nothing seen yet" else wsn), 13f, Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
         val ls = Prefs.getString(this, "layout_status")
@@ -176,7 +179,7 @@ class SettingsActivity : BaseActivity() {
         val ver = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "" }
         a.addView(Ui.caption(this, "Version " + ver).apply { setPadding(0, dp(4), 0, dp(6)) })
         a.addView(Ui.text(this,
-            "Everything stays on this phone: DashLens has no internet permission and no account. It reads only the DoorDash Dasher app screen (and the Uber Driver app, only if you switch that on above), never taps or accepts anything for you, " +
+            "Everything stays on this phone: DashLens has no internet permission and no account. It reads only the DoorDash Dasher app screen (and the Uber Driver app, only if you switch that on above; Uber offer cards are read from a screenshot that is read on the phone and never saved or sent), never taps or accepts anything for you, " +
                 "and is not affiliated with or endorsed by DoorDash or Uber. Earnings and tax figures are estimates, not tax advice.", 12f, Ui.MUTED))
         a.addView(Ui.button(this, "Replay the setup guide") { startActivity(Intent(this, OnboardingActivity::class.java)) })
         Ui.add(root, a)

@@ -344,6 +344,39 @@ class UberSupportTest {
         assertFalse(OfferParser.looksLikeOffer(list, Platform.UBER))
     }
 
+    // ---- reading the offer card from a screenshot (Uber hides it from the accessibility read)
+
+    private fun ocr(vararg rows: Triple<String, Int, Int>) = rows.map { OcrLine(it.first, it.second, it.second + 60, it.third) }
+
+    @Test fun readsTheOfferFromScreenshotTextWithMapLabelsAround() {
+        // OCR returns blocks in any order and includes the map labels above the card (positions from the 18:19 screenshot)
+        val lines = ocr(
+            Triple("Accept", 2070, 540), Triple("Customer verification", 1900, 215), Triple("Country Club Dr, Simi Valley", 1760, 180),
+            Triple("McDonald's", 1670, 180), Triple("21 min (4.2 mi) total", 1535, 180), Triple("Guaranteed (incl. tip)", 1380, 115),
+            Triple("S7.62", 1230, 95), Triple("Exclusive", 1115, 445), Triple("Delivery", 1115, 180),
+            Triple("ROYAL AVE", 540, 530), Triple("Iceoplex Simi", 205, 40), Triple("Valley", 255, 110))
+        val o = OfferParser.parse(OcrText.texts(lines), platform = Platform.UBER)!!
+        assertEquals(7.62, o.pay, 0.001)
+        assertEquals(4.2, o.miles, 0.001)
+        assertEquals("McDonald's", o.merchant)
+    }
+
+    @Test fun screenshotTextIsPutInReadingOrder() {
+        val t = OcrText.texts(ocr(Triple("b", 200, 10), Triple("c", 200, 90), Triple("a", 100, 400)))
+        assertEquals(listOf("a", "b", "c"), t)
+    }
+
+    @Test fun findsTheAcceptButtonRowsToKeepTheCardOffThem() {
+        val b = OcrText.bands(ocr(Triple("Delivery", 1115, 180), Triple("Accept", 2070, 540)), 55)
+        assertEquals(1, b.size)
+        assertEquals(2015, b[0].top)
+        assertEquals(2185, b[0].bottom)
+    }
+
+    @Test fun anEmptyScreenshotIsNotAnOffer() {
+        assertNull(OfferParser.parse(OcrText.texts(ocr(Triple("Home", 100, 50), Triple("\$29.17", 160, 50))), platform = Platform.UBER))
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

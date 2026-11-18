@@ -50,5 +50,7 @@ android {
 }
 
 dependencies {
+    // on-device text recognition (model bundled in the app) for reading Uber offer cards from a screenshot
+    implementation("com.google.mlkit:text-recognition:16.0.1")
     testImplementation("junit:junit:4.13.2")
 }

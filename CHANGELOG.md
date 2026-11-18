@@ -5,12 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-11-17
+
 ### Added
 - The shift now ends by itself when you are offline or logged out of every driver app you use (DoorDash, and Uber if enabled) for 1 minute (Settings > "End the shift N minutes after you go offline", 0.5 = 30 s, 0 = off). It only runs after DashLens has seen you online during the shift, never ends a shift while you are on an order, and does not trigger the 10-minute wait before auto start, so going online again starts a new shift. Logged-out screens ("Forgot password", "Log in to your...", the Dasher home with "Avg. offer wait") now count as offline. Settings > Diagnostics shows what auto end did last.
-
-## [4.3.0] - 2026-11-11
-
-### Added
 - The screenshot text saved in Diagnostics is now only the offer card itself; whatever was on screen behind it is dropped (it used to keep the whole screen).
 - Uber offers read from a screenshot: Uber hides its offer card from the accessibility read (the whole screen comes back empty while an offer is up), so DashLens now takes a screenshot when Uber's screen is empty and reads the pay, miles and merchant with on-device text recognition (Settings > Read Uber offer cards from a screenshot). Nothing is saved or sent; the app still has no internet permission (the build fails if one appears). Needs Android 11+; after updating, switch DashLens off and on under Accessibility and accept the screenshot permission.
 - Uber offers: DashLens now reads every window of the driver app. Uber draws its offer card as a window of its own over the map, which the old single-window read never saw (every other Uber screen was read fine). Settings > Diagnostics shows how many Uber windows were seen and whether one looked like an offer.

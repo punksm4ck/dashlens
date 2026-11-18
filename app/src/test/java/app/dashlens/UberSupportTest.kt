@@ -377,6 +377,23 @@ class UberSupportTest {
         assertNull(OfferParser.parse(OcrText.texts(ocr(Triple("Home", 100, 50), Triple("\$29.17", 160, 50))), platform = Platform.UBER))
     }
 
+    @Test fun savedScreenshotTextHoldsOnlyTheOfferCardNotTheScreenBehindIt() {
+        // 20:03 phone test: a Facebook comment thread was behind the offer card
+        val lines = ocr(
+            Triple("Jim Lile Apparently not!!", 190, 120), Triple("Tom Simpson", 420, 120), Triple("Former Congressman says what?", 500, 120),
+            Triple("MAYBE", 250, 150), Triple("Gas: 1.08 mi / 25 mpg", 770, 70),
+            Triple("Delivery", 1200, 180), Triple("\$6.17", 1320, 95), Triple("Guaranteed (incl. tip)", 1480, 115),
+            Triple("9 min (0.9 mi) total", 1650, 180), Triple("7-Eleven (1369 Erringer)", 1780, 180), Triple("Accept", 2090, 540))
+        val card = OcrText.cardLines(lines)
+        assertTrue(card.contains("\$6.17"))
+        assertTrue(card.contains("Accept"))
+        assertFalse(card.any { it.contains("Jim Lile") || it.contains("Tom Simpson") || it.contains("Congressman") })
+    }
+
+    @Test fun savedScreenshotTextIsEmptyWhenNoOfferCardIsFound() {
+        assertTrue(OcrText.cardLines(ocr(Triple("Jim Lile Apparently not!!", 190, 120), Triple("Reply", 300, 100))).isEmpty())
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

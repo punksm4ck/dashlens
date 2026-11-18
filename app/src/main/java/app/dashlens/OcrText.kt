@@ -18,6 +18,20 @@ object OcrText {
             .filter { it.isNotEmpty() }
             .map { t -> moneyMisreadRe.find(t)?.let { "$" + it.groupValues[1] } ?: t }
 
+    private val totalRe = Regex("""(?i)\bmi\)?\s*\)?\s*total""")
+
+    /**
+     * Only the text of the offer card itself, for the diagnostic capture: whatever else was on screen behind it (a chat,
+     * a feed, a bank app) is dropped. The card is found by its "... mi) total" line, or failing that by its Accept / Match
+     * button; nothing is returned when neither is there.
+     */
+    fun cardLines(lines: List<OcrLine>): List<String> {
+        val total = lines.lastOrNull { totalRe.containsMatchIn(it.text) }
+        if (total != null) return texts(lines.filter { it.top >= total.top - 520 && it.top <= total.bottom + 700 })
+        val button = lines.lastOrNull { l -> val t = l.text.trim(); t.equals("accept", true) || t.equals("match", true) } ?: return emptyList()
+        return texts(lines.filter { it.top >= button.top - 1100 && it.top <= button.bottom + 100 })
+    }
+
     /** Rows to keep the DashLens card off: the Accept / Decline / Match button text, padded to roughly the button's size. */
     fun bands(lines: List<OcrLine>, pad: Int): List<Band> =
         lines.filter { l ->

@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [4.3.0] - 2026-11-11
 
 ### Added
+- The screenshot text saved in Diagnostics is now only the offer card itself; whatever was on screen behind it is dropped (it used to keep the whole screen).
 - Uber offers read from a screenshot: Uber hides its offer card from the accessibility read (the whole screen comes back empty while an offer is up), so DashLens now takes a screenshot when Uber's screen is empty and reads the pay, miles and merchant with on-device text recognition (Settings > Read Uber offer cards from a screenshot). Nothing is saved or sent; the app still has no internet permission (the build fails if one appears). Needs Android 11+; after updating, switch DashLens off and on under Accessibility and accept the screenshot permission.
 - Uber offers: DashLens now reads every window of the driver app. Uber draws its offer card as a window of its own over the map, which the old single-window read never saw (every other Uber screen was read fine). Settings > Diagnostics shows how many Uber windows were seen and whether one looked like an offer.
 - Fixed: the Dasher ratings screen ("Acceptance rate") was mistaken for an offer and overwrote the captured offer text. Only real Accept / Decline buttons (and Uber's Match) count now.

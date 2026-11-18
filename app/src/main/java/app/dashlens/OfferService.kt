@@ -337,8 +337,10 @@ class OfferService : AccessibilityService() {
             val texts = OcrText.texts(lines)
             val offer = OfferParser.parse(texts, platform = Platform.UBER)
             // keep the text only when it looks like an offer: other apps on screen are never stored
-            if (OfferParser.looksLikeOffer(texts, Platform.UBER) || OfferParser.uberMaybeOffer(texts))
-                keepUberCapture("[screenshot] " + texts.joinToString(" | "))
+            if (OfferParser.looksLikeOffer(texts, Platform.UBER) || OfferParser.uberMaybeOffer(texts)) {
+                val card = OcrText.cardLines(lines)          // just the card: never the rest of the screen
+                if (card.isNotEmpty()) keepUberCapture("[screenshot] " + card.joinToString(" | "))
+            }
             if (offer != null) {
                 ocrNote("OK: read \$" + offer.pay + ", " + offer.miles + " mi" + (if (offer.merchant.isNotEmpty()) ", " + offer.merchant else ", merchant not found"))
                 Prefs.putString(this, "parse_status", "OK (Uber, from screenshot): read \$" + offer.pay + ", " + offer.miles + " mi" +

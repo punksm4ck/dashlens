@@ -68,8 +68,14 @@ object OfferParser {
         return t.any { payRe.containsMatchIn(it) } && t.any { miRe.containsMatchIn(it) }
     }
 
-    fun looksLikeOffer(texts: List<String>, platform: String = Platform.DOORDASH): Boolean =
-        texts.any { isOfferButton(it) } || (platform == Platform.UBER && uberSignature(texts))
+    /**
+     * Dasher: an Accept / Decline line. Uber: its numbers (pay + "... total" line), or a button together with a pay and a
+     * mile figure. Uber's "Opportunities" list also has Accept buttons but no miles, so it is not an offer.
+     */
+    fun looksLikeOffer(texts: List<String>, platform: String = Platform.DOORDASH): Boolean {
+        if (platform != Platform.UBER) return texts.any { isOfferButton(it) }
+        return uberSignature(texts) || (texts.any { isOfferButton(it) } && uberMaybeOffer(texts))
+    }
 
     /** Dasher sometimes draws money one character per node ("$", "5", ".", "0", "0"): glue those back together. */
     fun normalize(texts: List<String>): List<String> {

@@ -326,6 +326,24 @@ class UberSupportTest {
         assertFalse(OfferParser.uberMaybeOffer(arrived))
     }
 
+    // ---- real offer from the 2026-11-17 phone test (screenshot) and the "Opportunities" list that was captured instead
+
+    private val mcdOffer = listOf("Delivery", "Exclusive", "\$4.02", "Guaranteed (incl. tip)", "19 min (3.2 mi) total",
+        "McDonald's\u00ae (1495 E LOS ANGELES AVE)", "Cutler St & Whitcomb Ave, Simi Valley", "Accept")
+
+    @Test fun readsTheMcDonaldsOfferFromTheScreenshot() {
+        val o = OfferParser.parse(mcdOffer, platform = Platform.UBER)!!
+        assertEquals(4.02, o.pay, 0.001)
+        assertEquals(3.2, o.miles, 0.001)
+        assertEquals("McDonald's\u00ae (1495 E LOS ANGELES AVE)", o.merchant)
+    }
+
+    @Test fun opportunitiesListIsNotAnOfferEvenThoughItHasAcceptButtons() {
+        val list = listOf("You're Online", "Opportunities", "New", "Tuesday, Nov 17", "6:45 PM", "New", "\$10.81, Delivery",
+            "vons:2092. 2048 E Avenida de los Arboles, Thousand Oaks, CA 91362, USA", "Accept", "Accept", "Map", "Home", "Earnings")
+        assertFalse(OfferParser.looksLikeOffer(list, Platform.UBER))
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

@@ -144,6 +144,9 @@ class SettingsActivity : BaseActivity() {
         val au = Prefs.getString(this, "auto_start_status")
         d.addView(Ui.text(this, "Auto start: " + (if (au.isEmpty()) "nothing yet (no online screen seen since the switch was turned on)" else au), 13f,
             if (au.contains("STARTED")) Ui.GREEN else if (au.contains("BLOCKED") || au.contains("FAILED")) Ui.RED else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
+        val ae = Prefs.getString(this, "auto_end_status")
+        d.addView(Ui.text(this, "Auto end: " + (if (ae.isEmpty()) "nothing yet (no offline / logged-out screen seen during a shift)" else ae), 13f,
+            if (ae.contains("ENDED")) Ui.GREEN else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
         val overlayOk = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)
         d.addView(Ui.text(this, "Display over other apps: " + (if (overlayOk) "allowed (lets Android accept auto start)" else "not allowed"), 13f,
             if (overlayOk) Ui.GREEN else Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(4)) })

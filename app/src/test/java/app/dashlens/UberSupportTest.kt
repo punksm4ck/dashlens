@@ -394,6 +394,55 @@ class UberSupportTest {
         assertTrue(OcrText.cardLines(ocr(Triple("Jim Lile Apparently not!!", 190, 120), Triple("Reply", 300, 100))).isEmpty())
     }
 
+    // ---- auto end: offline or logged out of every driver app
+
+    private val DD = Platform.DOORDASH
+    private val UB = Platform.UBER
+    private val both = setOf(DD, UB)
+    private fun seen(vararg e: Pair<String, DState>) = e.associate { it.first to Seen(it.second, 0L) }
+
+    @Test fun allOffNeedsEveryAppOfflineAndAtLeastOneExplicitOfflineScreen() {
+        assertTrue(AutoEnd.allOff(seen(DD to DState.OFFLINE, UB to DState.OFFLINE), both))
+        assertFalse(AutoEnd.allOff(seen(DD to DState.OFFLINE, UB to DState.ONLINE), both))      // Uber still online
+        assertFalse(AutoEnd.allOff(seen(DD to DState.OFFLINE, UB to DState.ORDER), both))
+        assertFalse(AutoEnd.allOff(emptyMap(), both))                                          // nothing seen: do not end
+    }
+
+    @Test fun anAppNeverSeenDoesNotKeepTheShiftOpen() {
+        assertTrue(AutoEnd.allOff(seen(UB to DState.OFFLINE), both))                            // DoorDash never opened
+    }
+
+    @Test fun uberIsIgnoredWhenItsSwitchIsOff() {
+        assertTrue(AutoEnd.allOff(seen(DD to DState.OFFLINE, UB to DState.ONLINE), setOf(DD)))
+    }
+
+    @Test fun endsOnlyAfterTheSetTimeAndNeverOnAnOrder() {
+        val t0 = 1_000_000L
+        assertFalse(AutoEnd.shouldEnd(true, t0, t0 + 4 * 60_000L, 5.0, false))
+        assertTrue(AutoEnd.shouldEnd(true, t0, t0 + 5 * 60_000L, 5.0, false))
+        assertFalse(AutoEnd.shouldEnd(true, t0, t0 + 60 * 60_000L, 5.0, true))                  // on an order
+        assertFalse(AutoEnd.shouldEnd(true, t0, t0 + 60 * 60_000L, 0.0, false))                 // switched off
+        assertFalse(AutoEnd.shouldEnd(false, t0, t0 + 60 * 60_000L, 5.0, false))
+        assertFalse(AutoEnd.shouldEnd(true, 0L, t0 + 60 * 60_000L, 5.0, false))                 // not off yet
+    }
+
+    private fun kind(platform: String, vararg texts: String): DState? {
+        val (o, on, off) = StateDetector.defaults(platform)
+        return StateDetector.classify(texts.toList(), false, StateDetector.words(o), StateDetector.words(on), StateDetector.words(off))
+    }
+
+    @Test fun offlineAndLoggedOutScreensAreRecognised() {
+        assertEquals(DState.OFFLINE, kind(DD, "CA: Simi Valley", "Busy", "Stay busy with lots of offers", "Avg. offer wait", "6 min", "Dash"))   // real Dasher home, button just says "Dash"
+        assertEquals(DState.OFFLINE, kind(DD, "Log in", "Email", "Password", "Forgot password?"))
+        assertEquals(DState.OFFLINE, kind(UB, "Sign in to your account", "Forgot password"))
+        assertEquals(DState.OFFLINE, kind(UB, "Home", "You\u2019re offline"))
+    }
+
+    @Test fun onlineScreensAreNotMistakenForOffline() {
+        assertEquals(DState.ONLINE, kind(DD, "Finding offers..", "Zone offer wait", "2-20 min"))
+        assertEquals(DState.ONLINE, kind(UB, "Home", "Finding trips"))
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

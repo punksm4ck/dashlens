@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- The shift now ends by itself when you are offline or logged out of every driver app you use (DoorDash, and Uber if enabled) for 5 minutes (Settings > "End the shift N minutes after you are offline or logged out", 0 = off). It only runs after DashLens has seen you online during the shift, never ends a shift while you are on an order, and does not trigger the 10-minute wait before auto start, so going online again starts a new shift. Logged-out screens ("Forgot password", "Log in to your...", the Dasher home with "Avg. offer wait") now count as offline. Settings > Diagnostics shows what auto end did last.
+
 ## [4.3.0] - 2026-11-11
 
 ### Added

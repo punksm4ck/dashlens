@@ -23,6 +23,7 @@ class TrackerService : Service(), LocationListener {
 
     companion object {
         const val ACTION_STOP = "app.dashlens.STOP"
+        const val ACTION_AUTO_END = "app.dashlens.AUTO_END"
         const val ACTION_ONLINE = "app.dashlens.ONLINE"
         const val ACTION_ORDER = "app.dashlens.ORDER"
         const val ACTION_PAUSE = "app.dashlens.PAUSE"
@@ -85,6 +86,11 @@ class TrackerService : Service(), LocationListener {
         when (intent?.action) {
             ACTION_STOP -> {
                 Prefs.putLong(this, "last_manual_stop", System.currentTimeMillis())   // auto start waits 10 min after this
+                stopTracking(); return START_NOT_STICKY
+            }
+            ACTION_AUTO_END -> {
+                // not a manual stop: no cooldown, so going online again starts the next shift
+                Prompts.info(this, "Shift ended", "You were offline or logged out of every driver app, so DashLens ended the shift.")
                 stopTracking(); return START_NOT_STICKY
             }
             ACTION_ONLINE -> Tracker.setState(DState.ONLINE, true)

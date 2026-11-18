@@ -19,11 +19,11 @@ data class Seen(val state: DState, val atMs: Long)
 object StateDetector {
     const val DEF_ORDER = "confirm pickup,pick up from,pickup from,deliver to,drop off,dropoff,navigate to,directions,arrived at,verify order,start delivery,head to,heading to"
     const val DEF_ONLINE = "finding offers,finding orders,looking for orders,looking for offers,waiting for orders,dashing now,good place to wait,zone offer wait,end dash,pause orders"
-    const val DEF_OFFLINE = "dash now,start dash,go online,schedule a dash"
+    const val DEF_OFFLINE = "dash now,start dash,go online,schedule a dash,avg. offer wait,forgot password,forgot your password,don't have an account,log in to your,sign in to your"
 
     const val UBER_DEF_ORDER = "you've arrived,start shopping,expected by"
     const val UBER_DEF_ONLINE = "finding trips,you're online"
-    const val UBER_DEF_OFFLINE = "you're offline"
+    const val UBER_DEF_OFFLINE = "you're offline,forgot password,forgot your password,don't have an account,log in to your,sign in to your"
 
     /** Preference keys for the order / online / offline word lists of a platform. */
     fun keys(platform: String): Triple<String, String, String> =

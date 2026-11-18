@@ -36,6 +36,7 @@ object Prefs {
         Field("goal_week", "Weekly earnings goal \$ (0 = off)", 0f, G_MONEY),
         Field("tax_rate", "Income-tax set-aside % (federal + state, applied after self-employment tax)", 10f, G_MONEY),
         Field("biz_pct", "Business-use % of vehicle (actual-expense method only; odometer log overrides)", 100f, G_MONEY),
+        Field("auto_end_min", "End the shift N minutes after you are offline or logged out of every driver app you use (0 = off)", 5f, G_MONEY),
         Field("auto_stop_min", "Auto-stop shift after N minutes of auto-detected 'not dashing' (0 = off)", 30f, G_MONEY)
     )
 

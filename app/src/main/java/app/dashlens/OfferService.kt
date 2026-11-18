@@ -68,6 +68,7 @@ class OfferService : AccessibilityService() {
         val now = System.currentTimeMillis()
         seen[platform] = Seen(own, now)
         if (own == DState.ORDER) OfferLog.autoAccepted(this, platform)
+        handler.post { try { checkAutoEnd() } catch (_: Exception) {} }
         // the shift state is the strongest recent state across the driver apps (see StateMerge)
         val ds = StateMerge.combine(seen, now) ?: own
         if (!isOffer) lastDetected = ds
@@ -90,6 +91,47 @@ class OfferService : AccessibilityService() {
     }
 
     private var lastAutoTry = 0L
+
+    // ---- auto end: offline or logged out of every driver app
+    private var sawActive = false      // this shift has shown an online / on-order screen
+    private var allOffSince = 0L
+    private var lastEndNote = ""
+    private val endCheck = object : Runnable {
+        override fun run() {
+            try { checkAutoEnd() } catch (_: Exception) {}
+            handler.postDelayed(this, 30_000L)
+        }
+    }
+
+    private fun enabledPlatforms(): Set<String> =
+        Platform.PACKAGES.values.filter { it != Platform.UBER || Prefs.getBool(this, "uber_enabled", false) }.toSet()
+
+    private fun endNote(text: String) {
+        if (text == lastEndNote) return
+        lastEndNote = text
+        val stamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        Prefs.putString(this, "auto_end_status", "[" + stamp + "] " + text)
+    }
+
+    /** Ends the shift when every app you use has been offline / logged out for the set time. Runs every 30 s and after each screen. */
+    private fun checkAutoEnd() {
+        if (!Tracker.running) { sawActive = false; allOffSince = 0L; return }
+        val now = System.currentTimeMillis()
+        val enabled = enabledPlatforms()
+        if (enabled.any { seen[it]?.state == DState.ONLINE || seen[it]?.state == DState.ORDER }) sawActive = true
+        val off = sawActive && AutoEnd.allOff(seen, enabled)
+        if (!off) { allOffSince = 0L; return }
+        if (allOffSince == 0L) allOffSince = now
+        val mins = Prefs.get(this, "auto_end_min")
+        if (mins <= 0.0) return
+        if (AutoEnd.shouldEnd(true, allOffSince, now, mins, Tracker.state == DState.ORDER)) {
+            endNote("ENDED the shift: offline or logged out of every driver app for " + Prefs.fmt(mins) + " min")
+            sawActive = false; allOffSince = 0L
+            TrackerService.send(this, TrackerService.ACTION_AUTO_END)
+        } else {
+            endNote("WAITING: offline or logged out of every driver app, ends after " + Prefs.fmt(mins) + " min")
+        }
+    }
 
     /** Starts the shift by itself when the "auto start" switch is on. False = not started (the caller falls back to the notification). */
     private fun tryAutoStart(platform: String, own: DState, now: Long): Boolean {
@@ -152,6 +194,8 @@ class OfferService : AccessibilityService() {
     override fun onServiceConnected() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         instance = this
+        handler.removeCallbacks(endCheck)
+        handler.postDelayed(endCheck, 30_000L)
         // lets DashLens read every window of a driver app (Uber's offer card is a window of its own)
         try {
             val info = serviceInfo

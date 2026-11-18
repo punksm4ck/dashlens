@@ -151,6 +151,8 @@ class SettingsActivity : BaseActivity() {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
         })
         d.addView(Ui.button(this, "Copy auto start status") { copy("auto_start_status") })
+        val wsn = Prefs.getString(this, "win_status")
+        d.addView(Ui.text(this, "Uber windows: " + (if (wsn.isEmpty()) "nothing seen yet" else wsn), 13f, Ui.MUTED, true).apply { setPadding(0, 0, 0, dp(8)) })
         val ls = Prefs.getString(this, "layout_status")
         d.addView(Ui.text(this, "Offer card placement: " + (if (ls.isEmpty()) "no offer card shown yet" else ls), 13f, Ui.MUTED, true)
             .apply { setPadding(0, 0, 0, dp(8)) })

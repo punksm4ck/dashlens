@@ -152,6 +152,12 @@ class OfferService : AccessibilityService() {
     override fun onServiceConnected() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         instance = this
+        // lets DashLens read every window of a driver app (Uber's offer card is a window of its own)
+        try {
+            val info = serviceInfo
+            info.flags = info.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            serviceInfo = info
+        } catch (_: Exception) {}
     }
 
     /** Sample card so you can check the overlay without waiting for a real offer. Never written to the history. */
@@ -199,15 +205,47 @@ class OfferService : AccessibilityService() {
         return n
     }
 
+    /**
+     * Every window of the driver app. Uber draws its offer card as a window of its own on top of the map, so reading
+     * only the active window never sees it. Falls back to the single window [driverRoot] finds when Android gives no list.
+     */
+    private fun driverRoots(e: AccessibilityEvent): List<AccessibilityNodeInfo> {
+        val known = e.packageName?.toString() ?: rootInActiveWindow?.packageName?.toString()
+        val out = ArrayList<AccessibilityNodeInfo>()
+        if (Platform.of(known) != null) {
+            try {
+                for (w in windows) {
+                    val r = w.root ?: continue
+                    if (r.packageName?.toString() == known) out.add(r)
+                }
+            } catch (_: Exception) {}
+        }
+        if (out.isEmpty()) driverRoot(e)?.let { out.add(it) }
+        return out
+    }
+
+    private var lastWinKey = ""
+    /** For Settings > Diagnostics: how many Uber windows DashLens can see, and whether one looks like an offer. Written only when that changes. */
+    private fun windowNote(n: Int, counts: List<Int>, offer: Boolean) {
+        val key = n.toString() + "/" + offer
+        if (key == lastWinKey) return
+        lastWinKey = key
+        val stamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        Prefs.putString(this, "win_status", "[" + stamp + "] Uber windows seen: " + n + " (text lines " + counts.joinToString(" + ") + "), offer screen: " + (if (offer) "yes" else "no"))
+    }
+
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e == null) return
-        val root = driverRoot(e) ?: return
+        val roots = driverRoots(e)
+        val root = roots.firstOrNull() ?: return
         val platform = Platform.of(root.packageName?.toString()) ?: return
         // Uber is opt-in: until it is switched on in Settings nothing is read from it
         if (platform == Platform.UBER && !Prefs.getBool(this, "uber_enabled", false)) return
 
         val texts = ArrayList<String>()
-        collect(root, texts, 0)
+        val counts = ArrayList<Int>()
+        for (r in roots) { val n0 = texts.size; collect(r, texts, 0); counts.add(texts.size - n0) }
+        if (platform == Platform.UBER) windowNote(roots.size, counts, OfferParser.looksLikeOffer(texts, platform))
 
         val joined = texts.joinToString(" | ")
         // Only offer-looking screens replace the captured text (Uber's "already accepted" dialog used to wipe it)
@@ -242,12 +280,12 @@ class OfferService : AccessibilityService() {
 
         val key = "$platform|${offer.pay}|${offer.miles}|${offer.merchants.joinToString("+")}"
         if (key == lastKey && overlay != null) {
-            relayout(root)
+            relayout(roots)
             handler.postDelayed(timeoutRunnable, 45_000)
             return
         }
         lastKey = key
-        bands = findBands(root)
+        bands = roots.flatMap { findBands(it) }
         val result = Analyzer.analyze(this, offer)
         logOffer(offer, result, key)
         show(offer, result)
@@ -461,9 +499,9 @@ class OfferService : AccessibilityService() {
     }
 
     /** The same offer is still on screen: if the buttons moved (the Dasher screen was still animating), move the card too. */
-    private fun relayout(root: AccessibilityNodeInfo) {
+    private fun relayout(roots: List<AccessibilityNodeInfo>) {
         if (!Prefs.getBool(this, "overlay_avoid", true)) return
-        val now = findBands(root)
+        val now = roots.flatMap { findBands(it) }
         val moved = now.size != bands.size || now.indices.any { abs(now[it].top - bands[it].top) > dp(12) || abs(now[it].bottom - bands[it].bottom) > dp(12) }
         if (!moved) return
         bands = now

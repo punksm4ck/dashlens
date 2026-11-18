@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [4.3.0] - 2026-11-11
 
 ### Added
+- Uber offers: DashLens now reads every window of the driver app. Uber draws its offer card as a window of its own over the map, which the old single-window read never saw (every other Uber screen was read fine). Settings > Diagnostics shows how many Uber windows were seen and whether one looked like an offer.
 - Fixed: the Dasher ratings screen ("Acceptance rate") was mistaken for an offer and overwrote the captured offer text. Only real Accept / Decline buttons (and Uber's Match) count now.
 - Uber offers are now also recognised by their numbers (a pay line plus a "22 min (8.1 mi) total" line), so an offer with an unexpected button label still gets a card. Settings > Diagnostics keeps the last 3 Uber screens that looked like an offer.
 - Settings > Diagnostics now shows what auto start did last (started, waiting, or blocked by Android and why), plus an "Allow display over other apps" button. Android only lets an app start location tracking from the background in certain cases (for example with that permission, or with battery optimisation off); without it you get the Start shift notification.

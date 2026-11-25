@@ -443,6 +443,36 @@ class UberSupportTest {
         assertEquals(DState.ONLINE, kind(UB, "Home", "Finding trips"))
     }
 
+    // ---- the screen after accepting is not a new offer
+
+    private val realUberOffer = listOf("\$6.17", "Guaranteed (incl. tip)", "19 min (0.9 mi) total", "7-Eleven", "Match")
+    // pickup screen of an accepted trip: an address, a mile figure and a dollar amount, but no "min (x mi) total" line
+    private val uberTripScreen = listOf("Vons (5805 E Los Angeles Ave)", "6.5 mi", "\$1.00", "Match")
+
+    @Test fun anUberOfferStillCountsWhileYouAreOnAnOrder() {
+        assertTrue(OfferParser.isOfferScreen(realUberOffer, Platform.UBER, true))      // a stacked offer has the strict layout
+        assertTrue(OfferParser.isOfferScreen(realUberOffer, Platform.UBER, false))
+    }
+
+    @Test fun theTripScreenIsNotReadAsAnOfferOnAnOrder() {
+        assertFalse(OfferParser.isOfferScreen(uberTripScreen, Platform.UBER, true))
+        assertNull(OfferParser.parse(uberTripScreen, platform = Platform.UBER).takeIf { OfferParser.isOfferScreen(uberTripScreen, Platform.UBER, true) })
+    }
+
+    @Test fun theLooserUberReadingStillWorksWhenNotOnAnOrder() {
+        assertTrue(OfferParser.isOfferScreen(uberTripScreen, Platform.UBER, false))
+    }
+
+    @Test fun dasherIsNotAffectedByTheOnOrderGuard() {
+        val dd = listOf("\$5.00", "Guaranteed (incl. tips)", "1.4 mi", "Pickup", "Chipotle", "Accept", "Decline")
+        assertTrue(OfferParser.isOfferScreen(dd, Platform.DOORDASH, true))
+    }
+
+    @Test fun anAcceptedUberTripHasTimeToShowItsOrderScreen() {
+        assertTrue(OfferLog.windowMs(Platform.UBER) >= 120_000L)
+        assertEquals(25_000L, OfferLog.windowMs(Platform.DOORDASH))
+    }
+
     // ---- which apps DashLens is allowed to read
 
     @Test fun mapsPackagesToApps() {

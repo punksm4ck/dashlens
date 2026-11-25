@@ -30,6 +30,8 @@ class OfferService : AccessibilityService() {
     private var wm: WindowManager? = null
     private var overlay: View? = null
     private var overlayLp: WindowManager.LayoutParams? = null
+    private var closeView: View? = null              // the x: a small window of its own, so the card itself stays touch-through
+    private var closeLp: WindowManager.LayoutParams? = null
     private var bands: List<Band> = emptyList()      // Accept / Decline buttons as last seen on screen
     private var lastKey = ""
     private var lastDump = ""
@@ -40,14 +42,15 @@ class OfferService : AccessibilityService() {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
-    private val timeoutRunnable = Runnable { ocrShowing = false; hide() }
+    // a card that stayed up 45 s: for the screenshot route also start the accepted / passed clock
+    private val timeoutRunnable = Runnable { if (ocrShowing) endOcrShow() else hide() }
 
     private val goneRunnable = Runnable {
         gonePending = false
         hide()
         OfferLog.gone()
         handler.removeCallbacks(resolveRunnable)
-        handler.postDelayed(resolveRunnable, 20_000L)
+        handler.postDelayed(resolveRunnable, OfferLog.resolveDelayMs())
     }
 
     private val resolveRunnable = Runnable { OfferLog.resolve(this) }
@@ -61,7 +64,7 @@ class OfferService : AccessibilityService() {
 
     /** Feeds the mileage log and offer outcomes: works out Online / On order / not dashing from the driver app screen. */
     private fun trackScreen(texts: List<String>, platform: String) {
-        val isOffer = OfferParser.looksLikeOffer(texts, platform)
+        val isOffer = OfferParser.isOfferScreen(texts, platform, lastDetected == DState.ORDER)
         val own = StateDetector.detect(this, texts, isOffer, platform)
         StateDetector.log(this, own, texts, platform)
         if (own == null) return
@@ -304,9 +307,9 @@ class OfferService : AccessibilityService() {
 
         trackScreen(texts, platform)
 
-        val offer = OfferParser.parse(texts, platform = platform)
+        val offer = if (OfferParser.isOfferScreen(texts, platform, lastDetected == DState.ORDER)) OfferParser.parse(texts, platform = platform) else null
         val tag = if (platform == Platform.UBER) " (Uber)" else ""
-        if (offer == null && OfferParser.looksLikeOffer(texts, platform))
+        if (offer == null && OfferParser.isOfferScreen(texts, platform, lastDetected == DState.ORDER))
             Prefs.putString(this, "parse_status", "FAILED" + tag + ": an offer screen was seen but pay or miles could not be read. Copy the offer text below.")
         if (offer != null)
             Prefs.putString(this, "parse_status", "OK" + tag + ": read \$" + offer.pay + ", " + offer.miles + " mi" +
@@ -324,13 +327,15 @@ class OfferService : AccessibilityService() {
 
     /** Shows the card for an offer, or just keeps it alive when it is the same offer. [ocrBands] = button rows found in a screenshot (no windows to search). */
     private fun presentOffer(offer: Offer, roots: List<AccessibilityNodeInfo>, ocrBands: List<Band>?) {
+        val key0 = offerKey(offer)
+        if (key0 == dismissedKey && System.currentTimeMillis() - dismissedAt < 120_000L) return     // you closed this card
         gonePending = false
         handler.removeCallbacks(goneRunnable)
         handler.removeCallbacks(resolveRunnable)
         handler.removeCallbacks(timeoutRunnable)
         OfferLog.reappeared()
 
-        val key = "${offer.platform}|${offer.pay}|${offer.miles}|${offer.merchants.joinToString("+")}"
+        val key = key0
         if (key == lastKey && overlay != null) {
             if (ocrBands == null) relayout(roots)
             handler.postDelayed(timeoutRunnable, 45_000)
@@ -345,12 +350,28 @@ class OfferService : AccessibilityService() {
         handler.postDelayed(timeoutRunnable, 45_000)
     }
 
+    private fun offerKey(o: Offer) = "${o.platform}|${o.pay}|${o.miles}|${o.merchants.joinToString("+")}"
+
+    private var dismissedKey = ""
+    private var dismissedAt = 0L
+
+    /** The x on the card: hides it now and keeps it hidden while the same offer is still being read. */
+    private fun dismiss() {
+        dismissedKey = lastKey
+        dismissedAt = System.currentTimeMillis()
+        ocrShowing = false
+        handler.removeCallbacks(ocrRecheck)
+        goneRunnable.run()
+    }
+
     // ---- Uber offer card read from a screenshot
 
     private var ocrBusy = false
     private var lastOcrAt = 0L
     private var ocrShowing = false
     private var ocrMisses = 0
+    private var ocrKey = ""          // the offer the screenshot route is showing
+    private var ocrShownAt = 0L
 
     private val ocrRecheck = object : Runnable {
         override fun run() {
@@ -358,6 +379,14 @@ class OfferService : AccessibilityService() {
             if (ocrBusy) { handler.postDelayed(this, 1000L); return }
             runOcr(true)
         }
+    }
+
+    /** The screenshot route is done with its card (accepted, declined, expired, or unreadable): hide it and start the accepted / passed clock. */
+    private fun endOcrShow() {
+        ocrShowing = false
+        ocrKey = ""
+        handler.removeCallbacks(ocrRecheck)
+        goneRunnable.run()
     }
 
     /** At most one screenshot every 2.5 s, and only while Uber's tree is empty (an offer card, or Uber in the background). */
@@ -375,31 +404,44 @@ class OfferService : AccessibilityService() {
             ocrBusy = false
             if (lines == null) {
                 ocrNote("FAILED: " + why)
-                if (recheck && ocrShowing) handler.postDelayed(ocrRecheck, 2500L)
+                if (recheck && ocrShowing) {
+                    // a screenshot that keeps failing must not leave the card up for ever
+                    ocrMisses++
+                    if (ocrMisses >= 3) endOcrShow() else handler.postDelayed(ocrRecheck, 2500L)
+                }
                 return@read
             }
             val texts = OcrText.texts(lines)
-            val offer = OfferParser.parse(texts, platform = Platform.UBER)
+            val offer = if (OfferParser.isOfferScreen(texts, Platform.UBER, lastDetected == DState.ORDER)) OfferParser.parse(texts, platform = Platform.UBER) else null
             // keep the text only when it looks like an offer: other apps on screen are never stored
             if (OfferParser.looksLikeOffer(texts, Platform.UBER) || OfferParser.uberMaybeOffer(texts)) {
                 val card = OcrText.cardLines(lines)          // just the card: never the rest of the screen
                 if (card.isNotEmpty()) keepUberCapture("[screenshot] " + card.joinToString(" | "))
             }
+            if (recheck) {
+                // while the card is up, only the SAME offer still being on screen keeps it up. Anything else (the order
+                // screen after accepting, DashLens's own card in the screenshot) counts as the offer being gone.
+                val same = offer != null && offerKey(offer) == ocrKey
+                val tooLong = System.currentTimeMillis() - ocrShownAt > 60_000L
+                if (same && !tooLong) { ocrMisses = 0; handler.postDelayed(ocrRecheck, 2500L) }
+                else {
+                    ocrMisses++
+                    if (tooLong || ocrMisses >= 2) endOcrShow() else handler.postDelayed(ocrRecheck, 2500L)
+                }
+                return@read
+            }
             if (offer != null) {
                 ocrNote("OK: read \$" + offer.pay + ", " + offer.miles + " mi" + (if (offer.merchant.isNotEmpty()) ", " + offer.merchant else ", merchant not found"))
                 Prefs.putString(this, "parse_status", "OK (Uber, from screenshot): read \$" + offer.pay + ", " + offer.miles + " mi" +
                     (if (offer.merchant.isNotEmpty()) ", " + offer.merchant else ", merchant not found"))
+                if (offerKey(offer) == dismissedKey && System.currentTimeMillis() - dismissedAt < 120_000L) return@read
                 ocrMisses = 0
                 ocrShowing = true
+                ocrKey = offerKey(offer)
+                ocrShownAt = System.currentTimeMillis()
                 presentOffer(offer, emptyList(), OcrText.bands(lines, dp(20)))
                 handler.removeCallbacks(ocrRecheck)
                 handler.postDelayed(ocrRecheck, 2500L)
-            } else if (recheck) {
-                ocrMisses++
-                if (ocrMisses >= 2) {          // two looks in a row without the offer: it was accepted, declined or expired
-                    ocrShowing = false
-                    goneRunnable.run()
-                } else handler.postDelayed(ocrRecheck, 2500L)
             } else {
                 ocrNote("screenshot read, no Uber offer on screen")
             }
@@ -498,6 +540,7 @@ class OfferService : AccessibilityService() {
         })
         val plus = if (o.payPlus) "+" else ""
         head.addView(tv(f("$%.0f/hr net", r.netHr) + plus, 20f, accent, true))
+        head.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(40), 1) })     // room for the x
         card.addView(head)
         card.addView(tv(r.floorLine, 11f, muted))
 
@@ -563,6 +606,31 @@ class OfferService : AccessibilityService() {
             overlay = wrap
             overlayLp = lp
         } catch (_: Exception) { overlay = null; overlayLp = null }
+        if (overlay != null) addCloseButton(lp.y)
+    }
+
+    /** A small x at the card's top right that closes the card. Only this button takes touches; the card stays touch-through. */
+    private fun addCloseButton(cardY: Int) {
+        val x = TextView(this).apply {
+            text = "\u2715"
+            textSize = 16f
+            setTextColor(0xFFFFFFFF.toInt())
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply { setColor(0xCC3A3F47.toInt()); shape = GradientDrawable.OVAL }
+            contentDescription = "Close DashLens card"
+            setOnClickListener { dismiss() }
+        }
+        val lp = WindowManager.LayoutParams(
+            dp(40), dp(40),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.END
+            this.x = dp(22)
+            this.y = cardY + dp(10)
+        }
+        try { wm?.addView(x, lp); closeView = x; closeLp = lp } catch (_: Exception) { closeView = null; closeLp = null }
     }
 
     private fun screenSize(): Pair<Int, Int> {
@@ -633,14 +701,19 @@ class OfferService : AccessibilityService() {
         if (y != lp.y) {
             lp.y = y
             try { wm?.updateViewLayout(ov, lp) } catch (_: Exception) {}
+            val cv = closeView; val cl = closeLp
+            if (cv != null && cl != null) { cl.y = y + dp(10); try { wm?.updateViewLayout(cv, cl) } catch (_: Exception) {} }
         }
     }
 
     private fun hide() {
         handler.removeCallbacks(timeoutRunnable)
         overlay?.let { try { wm?.removeView(it) } catch (_: Exception) {} }
+        closeView?.let { try { wm?.removeView(it) } catch (_: Exception) {} }
         overlay = null
         overlayLp = null
+        closeView = null
+        closeLp = null
         lastKey = ""
     }
 }

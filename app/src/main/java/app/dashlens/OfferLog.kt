@@ -18,7 +18,17 @@ object OfferLog {
 
     fun reappeared() { goneAt = 0L }
 
-    private fun inWindow() = goneAt == 0L || System.currentTimeMillis() - goneAt < 25_000L
+    /**
+     * How long after the offer closed an order screen still counts as "you accepted it". Dasher shows its order screen at
+     * once; Uber's first recognisable order screen can take a while (the offer, then a map, then "You've arrived"), so a
+     * 25 s window marked accepted Uber trips as passed and no earnings were logged.
+     */
+    fun windowMs(platform: String): Long = if (platform == Platform.UBER) 150_000L else 25_000L
+
+    private fun inWindow() = goneAt == 0L || System.currentTimeMillis() - goneAt < windowMs(currentPlatform)
+
+    /** How long after the offer closed before it is written down as passed. */
+    fun resolveDelayMs(): Long = if (currentPlatform == Platform.UBER) 120_000L else 20_000L
 
     /** The screen changed to an order screen after the offer closed. Ignored when you were already on an order (stacked offers). */
     fun autoAccepted(c: Context, platform: String = currentPlatform) {

@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.4.1] - 2026-11-25
+
+### Fixed
+- Uber: the DashLens card no longer stays on screen after you accept (or decline) an offer. While the card was up, the screenshot route re-read the screen every 2.5 s and any offer-looking text, including the accepted trip's own pickup screen and DashLens's own card, kept it alive and restarted its 45 s timer. Now only the same offer still being on screen keeps it up, a read that fails 3 times or a card older than 60 s ends it, and the card always starts the accepted / passed clock when it goes.
+- Uber: the pickup / navigation screen of an accepted trip (a street address, a mile figure and a dollar amount) was read as a new offer and replaced the real one in the history, so the trip was never counted as accepted and no earnings were logged. While you are on an order only Uber's strict offer layout (pay plus a "22 min (8.1 mi) total" line) counts as an offer.
+- Uber: an accepted trip now has 2.5 minutes (Dasher: 25 s) after the card closes to reach an order screen before it is written down as passed.
+
+### Added
+- A small x on the card closes it (the card itself still lets taps through to the driver app). It stays closed while the same offer is on screen.
+
 ## [4.4.0] - 2026-11-17
 
 Includes everything from the 4.3.0 betas. 4.3.0 (11 Nov) first added opt-in Uber Driver support; this release adds the Uber offer-card fixes (screenshot reading), auto start and auto end of shifts.

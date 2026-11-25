@@ -14,8 +14,8 @@ android {
         applicationId = "app.dashlens"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "4.4.0"
+        versionCode = 11
+        versionName = "4.4.1"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

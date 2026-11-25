@@ -77,6 +77,17 @@ object OfferParser {
         return uberSignature(texts) || (texts.any { isOfferButton(it) } && uberMaybeOffer(texts))
     }
 
+    /**
+     * [looksLikeOffer], except that while you are already on an Uber order only the strict Uber layout (pay plus a
+     * "22 min (8.1 mi) total" line) counts. The pickup / navigation screens of an accepted trip also show a street
+     * address, a mile figure and a dollar amount, and used to be read as a new offer (which replaced the real one in
+     * the history, so the accepted trip was never counted).
+     */
+    fun isOfferScreen(texts: List<String>, platform: String, onOrder: Boolean): Boolean {
+        if (!looksLikeOffer(texts, platform)) return false
+        return !(platform == Platform.UBER && onOrder && !uberSignature(texts))
+    }
+
     /** Dasher sometimes draws money one character per node ("$", "5", ".", "0", "0"): glue those back together. */
     fun normalize(texts: List<String>): List<String> {
         val out = ArrayList<String>()
